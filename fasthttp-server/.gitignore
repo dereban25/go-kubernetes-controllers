@@ -1,0 +1,9 @@
+# Binary
+fasthttp-server
+*.exe
+
+# Logs directory (keep directory but ignore log files)
+logs/*.log
+
+# Go files
+go.work
