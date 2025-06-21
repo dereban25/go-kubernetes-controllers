@@ -9,23 +9,23 @@ import (
 	"github.com/spf13/viper"
 )
 
-// applyCmd представляет команду apply
+// applyCmd represents the apply command
 var applyCmd = &cobra.Command{
 	Use:   "apply",
-	Short: "Создать ресурсы из YAML файла",
-	Long:  "Создать или обновить ресурсы Kubernetes из YAML файла",
+	Short: "Create resources from YAML file",
+	Long:  "Create or update Kubernetes resources from YAML file",
 }
 
-// applyFileCmd создает ресурсы из файла
+// applyFileCmd creates resources from file
 var applyFileCmd = &cobra.Command{
 	Use:   "file <filename>",
-	Short: "Применить YAML файл",
-	Long:  "Создать или обновить ресурсы Kubernetes из указанного YAML файла",
+	Short: "Apply YAML file",
+	Long:  "Create or update Kubernetes resources from specified YAML file",
 	Args:  cobra.ExactArgs(1),
-	Example: `  # Применить YAML файл
+	Example: `  # Apply YAML file
   k8s-cli apply file pod.yaml
 
-  # Применить файл в определенном namespace
+  # Apply file in specific namespace
   k8s-cli apply file deployment.yaml -n my-app`,
 	RunE: runApplyFile,
 }
@@ -38,26 +38,26 @@ func init() {
 func runApplyFile(cmd *cobra.Command, args []string) error {
 	filename := args[0]
 
-	// Читаем YAML файл
+	// Read YAML file
 	yamlData, err := ioutil.ReadFile(filename)
 	if err != nil {
-		return fmt.Errorf("ошибка чтения файла %s: %w", filename, err)
+		return fmt.Errorf("error reading file %s: %w", filename, err)
 	}
 
-	// Создаем Kubernetes клиент
+	// Create Kubernetes client
 	client, err := k8s.NewClient(viper.GetString("kubeconfig"))
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 
 	namespace := viper.GetString("namespace")
 
-	// Применяем YAML
+	// Apply YAML
 	err = client.CreateFromYAML(yamlData, namespace)
 	if err != nil {
-		return fmt.Errorf("ошибка применения YAML: %w", err)
+		return fmt.Errorf("error applying YAML: %w", err)
 	}
 
-	fmt.Printf("✅ Ресурсы успешно созданы из файла: %s\n", filename)
+	fmt.Printf("✅ Resources successfully created from file: %s\n", filename)
 	return nil
 }

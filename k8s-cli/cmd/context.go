@@ -8,40 +8,40 @@ import (
 	"github.com/spf13/viper"
 )
 
-// contextCmd представляет команду context
+// contextCmd represents the context command
 var contextCmd = &cobra.Command{
 	Use:   "context",
-	Short: "Управление контекстами Kubernetes",
-	Long:  "Команды для работы с контекстами Kubernetes - просмотр, переключение",
+	Short: "Manage Kubernetes contexts",
+	Long:  "Commands for working with Kubernetes contexts - viewing, switching",
 }
 
-// contextListCmd выводит список контекстов
+// contextListCmd lists contexts
 var contextListCmd = &cobra.Command{
 	Use:   "list",
-	Short: "Список всех контекстов",
-	Long:  "Показать все доступные контексты Kubernetes",
-	Example: `  # Показать все контексты
+	Short: "List all contexts",
+	Long:  "Show all available Kubernetes contexts",
+	Example: `  # Show all contexts
   k8s-cli context list`,
 	RunE: runContextList,
 }
 
-// contextCurrentCmd показывает текущий контекст
+// contextCurrentCmd shows current context
 var contextCurrentCmd = &cobra.Command{
 	Use:   "current",
-	Short: "Показать текущий контекст",
-	Long:  "Показать текущий активный контекст Kubernetes",
-	Example: `  # Показать текущий контекст
+	Short: "Show current context",
+	Long:  "Show current active Kubernetes context",
+	Example: `  # Show current context
   k8s-cli context current`,
 	RunE: runContextCurrent,
 }
 
-// contextSetCmd переключает контекст
+// contextSetCmd switches context
 var contextSetCmd = &cobra.Command{
 	Use:   "set <context-name>",
-	Short: "Переключить контекст",
-	Long:  "Переключиться на указанный контекст Kubernetes",
+	Short: "Switch context",
+	Long:  "Switch to specified Kubernetes context",
 	Args:  cobra.ExactArgs(1),
-	Example: `  # Переключиться на контекст
+	Example: `  # Switch to context
   k8s-cli context set my-cluster`,
 	RunE: runContextSet,
 }
@@ -56,23 +56,23 @@ func init() {
 func runContextList(cmd *cobra.Command, args []string) error {
 	client, err := k8s.NewClient(viper.GetString("kubeconfig"))
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 
 	contexts, err := client.GetContexts()
 	if err != nil {
-		return fmt.Errorf("ошибка получения контекстов: %w", err)
+		return fmt.Errorf("error getting contexts: %w", err)
 	}
 
 	currentContext, err := client.GetCurrentContext()
 	if err != nil {
-		return fmt.Errorf("ошибка получения текущего контекста: %w", err)
+		return fmt.Errorf("error getting current context: %w", err)
 	}
 
-	fmt.Println("Доступные контексты:")
+	fmt.Println("Available contexts:")
 	for _, context := range contexts {
 		if context == currentContext {
-			fmt.Printf("* %s (текущий)\n", context)
+			fmt.Printf("* %s (current)\n", context)
 		} else {
 			fmt.Printf("  %s\n", context)
 		}
@@ -84,15 +84,15 @@ func runContextList(cmd *cobra.Command, args []string) error {
 func runContextCurrent(cmd *cobra.Command, args []string) error {
 	client, err := k8s.NewClient(viper.GetString("kubeconfig"))
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 
 	currentContext, err := client.GetCurrentContext()
 	if err != nil {
-		return fmt.Errorf("ошибка получения текущего контекста: %w", err)
+		return fmt.Errorf("error getting current context: %w", err)
 	}
 
-	fmt.Printf("Текущий контекст: %s\n", currentContext)
+	fmt.Printf("Current context: %s\n", currentContext)
 	return nil
 }
 
@@ -102,14 +102,14 @@ func runContextSet(cmd *cobra.Command, args []string) error {
 
 	client, err := k8s.NewClient(kubeconfigPath)
 	if err != nil {
-		return fmt.Errorf("ошибка создания клиента: %w", err)
+		return fmt.Errorf("error creating client: %w", err)
 	}
 
 	err = client.SetContext(contextName, kubeconfigPath)
 	if err != nil {
-		return fmt.Errorf("ошибка переключения контекста: %w", err)
+		return fmt.Errorf("error switching context: %w", err)
 	}
 
-	fmt.Printf("Контекст переключен на: %s\n", contextName)
+	fmt.Printf("Context switched to: %s\n", contextName)
 	return nil
 }

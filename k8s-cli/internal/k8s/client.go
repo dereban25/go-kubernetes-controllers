@@ -14,15 +14,20 @@ import (
 	"k8s.io/client-go/tools/clientcmd"
 )
 
-// Client обертка для Kubernetes клиента
+// Client wrapper for Kubernetes client
 type Client struct {
 	clientset     *kubernetes.Clientset
 	dynamicClient dynamic.Interface
 	config        clientcmd.ClientConfig
 }
 
-// NewClient создает новый Kubernetes клиент
+// NewClient creates a new Kubernetes client
 func NewClient(kubeconfigPath string) (*Client, error) {
+	// If kubeconfigPath is empty, use default kubeconfig location
+	if kubeconfigPath == "" {
+		kubeconfigPath = clientcmd.RecommendedHomeFile
+	}
+
 	config := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(
 		&clientcmd.ClientConfigLoadingRules{ExplicitPath: kubeconfigPath},
 		&clientcmd.ConfigOverrides{},
@@ -30,17 +35,17 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 
 	restConfig, err := config.ClientConfig()
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания конфигурации: %w", err)
+		return nil, fmt.Errorf("error creating configuration: %w", err)
 	}
 
 	clientset, err := kubernetes.NewForConfig(restConfig)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания клиента: %w", err)
+		return nil, fmt.Errorf("error creating clientset: %w", err)
 	}
 
 	dynamicClient, err := dynamic.NewForConfig(restConfig)
 	if err != nil {
-		return nil, fmt.Errorf("ошибка создания dynamic клиента: %w", err)
+		return nil, fmt.Errorf("error creating dynamic client: %w", err)
 	}
 
 	return &Client{
@@ -50,17 +55,17 @@ func NewClient(kubeconfigPath string) (*Client, error) {
 	}, nil
 }
 
-// GetClientset возвращает Kubernetes clientset
+// GetClientset returns the Kubernetes clientset
 func (c *Client) GetClientset() *kubernetes.Clientset {
 	return c.clientset
 }
 
-// GetDynamicClient возвращает dynamic клиент
+// GetDynamicClient returns the dynamic client
 func (c *Client) GetDynamicClient() dynamic.Interface {
 	return c.dynamicClient
 }
 
-// GetCurrentContext возвращает текущий контекст
+// GetCurrentContext returns the current context
 func (c *Client) GetCurrentContext() (string, error) {
 	rawConfig, err := c.config.RawConfig()
 	if err != nil {
@@ -69,7 +74,7 @@ func (c *Client) GetCurrentContext() (string, error) {
 	return rawConfig.CurrentContext, nil
 }
 
-// GetContexts возвращает список всех контекстов
+// GetContexts returns a list of all contexts
 func (c *Client) GetContexts() ([]string, error) {
 	rawConfig, err := c.config.RawConfig()
 	if err != nil {
@@ -83,15 +88,19 @@ func (c *Client) GetContexts() ([]string, error) {
 	return contexts, nil
 }
 
-// SetContext переключает контекст
+// SetContext switches the context
 func (c *Client) SetContext(contextName, kubeconfigPath string) error {
+	if kubeconfigPath == "" {
+		kubeconfigPath = clientcmd.RecommendedHomeFile
+	}
+
 	config, err := clientcmd.LoadFromFile(kubeconfigPath)
 	if err != nil {
-		return fmt.Errorf("ошибка загрузки kubeconfig: %w", err)
+		return fmt.Errorf("error loading kubeconfig: %w", err)
 	}
 
 	if _, exists := config.Contexts[contextName]; !exists {
-		return fmt.Errorf("контекст '%s' не найден", contextName)
+		return fmt.Errorf("context '%s' not found", contextName)
 	}
 
 	config.CurrentContext = contextName
@@ -99,34 +108,34 @@ func (c *Client) SetContext(contextName, kubeconfigPath string) error {
 	return clientcmd.WriteToFile(*config, kubeconfigPath)
 }
 
-// TestConnection проверяет соединение с кластером
+// TestConnection tests the connection to the cluster
 func (c *Client) TestConnection() error {
 	_, err := c.clientset.Discovery().ServerVersion()
 	if err != nil {
-		return fmt.Errorf("не удается подключиться к кластеру: %w", err)
+		return fmt.Errorf("unable to connect to cluster: %w", err)
 	}
 	return nil
 }
 
-// CreateFromYAML создает ресурс из YAML
+// CreateFromYAML creates a resource from YAML
 func (c *Client) CreateFromYAML(yamlData []byte, namespace string) error {
-	// Декодируем YAML в unstructured объект
+	// Decode YAML into unstructured object
 	decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(string(yamlData)), 4096)
 
 	var obj unstructured.Unstructured
 	if err := decoder.Decode(&obj); err != nil {
-		return fmt.Errorf("ошибка декодирования YAML: %w", err)
+		return fmt.Errorf("error decoding YAML: %w", err)
 	}
 
-	// Получаем GVK из объекта
+	// Get GVK from object
 	gvk := obj.GroupVersionKind()
 
-	// Устанавливаем namespace если он не указан и это namespaced ресурс
+	// Set namespace if not specified and this is a namespaced resource
 	if obj.GetNamespace() == "" && namespace != "" && !isClusterScoped(gvk.Kind) {
 		obj.SetNamespace(namespace)
 	}
 
-	// Создаем ресурс используя dynamic клиент
+	// Create resource using dynamic client
 	gvr := schema.GroupVersionResource{
 		Group:    gvk.Group,
 		Version:  gvk.Version,
@@ -149,13 +158,87 @@ func (c *Client) CreateFromYAML(yamlData []byte, namespace string) error {
 	}
 
 	if err != nil {
-		return fmt.Errorf("ошибка создания ресурса: %w", err)
+		return fmt.Errorf("error creating resource: %w", err)
 	}
 
 	return nil
 }
 
-// isClusterScoped проверяет является ли ресурс cluster-scoped
+// DeleteFromYAML deletes a resource from YAML
+func (c *Client) DeleteFromYAML(yamlData []byte, namespace string) error {
+	// Decode YAML into unstructured object
+	decoder := yaml.NewYAMLOrJSONDecoder(strings.NewReader(string(yamlData)), 4096)
+
+	var obj unstructured.Unstructured
+	if err := decoder.Decode(&obj); err != nil {
+		return fmt.Errorf("error decoding YAML: %w", err)
+	}
+
+	// Get GVK from object
+	gvk := obj.GroupVersionKind()
+
+	// Set namespace if not specified and this is a namespaced resource
+	if obj.GetNamespace() == "" && namespace != "" && !isClusterScoped(gvk.Kind) {
+		obj.SetNamespace(namespace)
+	}
+
+	// Delete resource using dynamic client
+	gvr := schema.GroupVersionResource{
+		Group:    gvk.Group,
+		Version:  gvk.Version,
+		Resource: getResourceName(gvk.Kind),
+	}
+
+	var err error
+	if isClusterScoped(gvk.Kind) {
+		err = c.dynamicClient.Resource(gvr).Delete(
+			context.TODO(),
+			obj.GetName(),
+			metav1.DeleteOptions{},
+		)
+	} else {
+		err = c.dynamicClient.Resource(gvr).Namespace(obj.GetNamespace()).Delete(
+			context.TODO(),
+			obj.GetName(),
+			metav1.DeleteOptions{},
+		)
+	}
+
+	if err != nil {
+		return fmt.Errorf("error deleting resource: %w", err)
+	}
+
+	return nil
+}
+
+// ListDeployments lists deployments in the specified namespace (Step 6 requirement)
+func (c *Client) ListDeployments(namespace string) error {
+	deployments, err := c.clientset.AppsV1().Deployments(namespace).List(
+		context.TODO(),
+		metav1.ListOptions{},
+	)
+	if err != nil {
+		return fmt.Errorf("error listing deployments: %w", err)
+	}
+
+	fmt.Printf("Deployments in namespace '%s':\n", namespace)
+	for _, deployment := range deployments.Items {
+		replicas := int32(0)
+		if deployment.Spec.Replicas != nil {
+			replicas = *deployment.Spec.Replicas
+		}
+		fmt.Printf("  %s - Ready: %d/%d, Available: %d\n",
+			deployment.Name,
+			deployment.Status.ReadyReplicas,
+			replicas,
+			deployment.Status.AvailableReplicas,
+		)
+	}
+
+	return nil
+}
+
+// isClusterScoped checks if a resource is cluster-scoped
 func isClusterScoped(kind string) bool {
 	clusterScopedResources := []string{
 		"Namespace",
@@ -164,6 +247,9 @@ func isClusterScoped(kind string) bool {
 		"ClusterRole",
 		"ClusterRoleBinding",
 		"StorageClass",
+		"CustomResourceDefinition",
+		"ValidatingAdmissionWebhook",
+		"MutatingAdmissionWebhook",
 	}
 
 	for _, resource := range clusterScopedResources {
@@ -174,7 +260,7 @@ func isClusterScoped(kind string) bool {
 	return false
 }
 
-// getResourceName возвращает имя ресурса по Kind
+// getResourceName returns the resource name by Kind
 func getResourceName(kind string) string {
 	switch kind {
 	case "Pod":
@@ -189,8 +275,33 @@ func getResourceName(kind string) string {
 		return "secrets"
 	case "Namespace":
 		return "namespaces"
+	case "Ingress":
+		return "ingresses"
+	case "PersistentVolume":
+		return "persistentvolumes"
+	case "PersistentVolumeClaim":
+		return "persistentvolumeclaims"
+	case "ServiceAccount":
+		return "serviceaccounts"
+	case "Role":
+		return "roles"
+	case "RoleBinding":
+		return "rolebindings"
+	case "ClusterRole":
+		return "clusterroles"
+	case "ClusterRoleBinding":
+		return "clusterrolebindings"
+	case "DaemonSet":
+		return "daemonsets"
+	case "StatefulSet":
+		return "statefulsets"
+	case "ReplicaSet":
+		return "replicasets"
+	case "Job":
+		return "jobs"
+	case "CronJob":
+		return "cronjob"
 	default:
-		// Простая конвертация - добавляем 's'
 		return strings.ToLower(kind) + "s"
 	}
 }
