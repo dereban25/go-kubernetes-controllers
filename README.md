@@ -15,7 +15,7 @@ Tool CLI for K8S.
 ### Pipeline Jobs
 
 - **Code Quality**: `go fmt`, `go vet`, formatting checks
-- **Tests**: Unit tests, build verification, syntax validation
+- **Tests**: Unit tests, build verification, syntax validation  
 - **Multi-Platform Build**: Linux, macOS, Windows binaries
 - **Release**: Automatic GitHub releases on tags
 - **Status Report**: Build summary and artifact upload
