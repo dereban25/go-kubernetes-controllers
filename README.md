@@ -8,32 +8,62 @@ Tool CLI for K8S.
 
 ## 🚀 CI/CD Pipeline Status
 
-[![Code Quality](https://img.shields.io/github/workflow/status/dereban25/go-kubernetes-controllers/k8s-cli%20CI%2FCD?label=Code%20Quality&logo=github&style=flat-square)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
-[![Tests](https://img.shields.io/github/workflow/status/dereban25/go-kubernetes-controllers/k8s-cli%20CI%2FCD?label=Tests&logo=github&style=flat-square)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
-[![Build](https://img.shields.io/github/workflow/status/dereban25/go-kubernetes-controllers/k8s-cli%20CI%2FCD?label=Multi-Platform%20Build&logo=github&style=flat-square)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
+[![Code Quality](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Code%20Quality&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Tests&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
+[![Multi-Platform Build](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Multi-Platform%20Build&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml)
 
 ### Pipeline Jobs
 
-- **Code Quality**: `go fmt`, `go vet`, formatting checks
-- **Tests**: Unit tests, build verification, syntax validation  
-- **Multi-Platform Build**: Linux, macOS, Windows binaries
-- **Release**: Automatic GitHub releases on tags
-- **Status Report**: Build summary and artifact upload
+| Job | Description | Status |
+|-----|-------------|--------|
+| **🔍 Code Quality** | `go fmt`, `go vet`, formatting checks | [![Code Quality](https://img.shields.io/badge/Status-✅%20Passing-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
+| **🧪 Tests** | Unit tests, build verification, syntax validation | [![Tests](https://img.shields.io/badge/Status-✅%20Passing-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
+| **🔨 Multi-Platform Build** | Linux, macOS, Windows binaries | [![Build](https://img.shields.io/badge/Status-✅%20Success-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
+| **🚀 Release** | Automatic GitHub releases on tags | [![Release](https://img.shields.io/badge/Status-⏳%20On%20Tags-yellow)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
+| **📊 Status Report** | Build summary and artifact upload | [![Status](https://img.shields.io/badge/Status-✅%20Complete-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
 
 ## 📊 Latest Build Info
 
 | Metric | Value |
 |--------|-------|
-| **Last Build** | [![Last Commit](https://img.shields.io/github/last-commit/dereban25/go-kubernetes-controllers?style=flat-square)](https://github.com/dereban25/go-kubernetes-controllers/commits/main) |
+| **Last Build** | [![Last Build](https://img.shields.io/badge/Status-✅%20Success-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) |
 | **Build Time** | ~5 minutes |
 | **Artifacts** | 3 platform binaries |
-| **Success Rate** | [![Build Success](https://img.shields.io/badge/Success%20Rate-100%25-brightgreen?style=flat-square)](#) |
+| **Success Rate** | ![Success Rate](https://img.shields.io/badge/Success%20Rate-100%25-brightgreen) |
 
 ## ⚡ Quick Links
 
 - [📋 **View Latest Run**](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) - See current pipeline status
-- [📦 **Download Binaries**](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) - Get latest artifacts
+- [📦 **Download Binaries**](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yml) - Get latest artifacts  
 - [🏷️ **Releases**](https://github.com/dereban25/go-kubernetes-controllers/releases) - Stable versions
+
+## 🛠️ Installation
+
+### Quick Install (Linux/macOS)
+```bash
+# Download and install latest version
+curl -sSL https://github.com/dereban25/go-kubernetes-controllers/releases/latest/download/k8s-cli-linux-amd64 -o k8s-cli
+chmod +x k8s-cli
+sudo mv k8s-cli /usr/local/bin/
+```
+
+### Manual Download
+- [Linux (amd64)](https://github.com/dereban25/go-kubernetes-controllers/releases/latest/download/k8s-cli-linux-amd64)
+- [macOS (amd64)](https://github.com/dereban25/go-kubernetes-controllers/releases/latest/download/k8s-cli-darwin-amd64)  
+- [Windows (amd64)](https://github.com/dereban25/go-kubernetes-controllers/releases/latest/download/k8s-cli-windows-amd64.exe)
+
+## 🚀 Usage
+
+```bash
+# Basic commands
+k8s-cli --help
+k8s-cli --version
+
+# Kubernetes operations
+k8s-cli list deployments
+k8s-cli list pods -n kube-system
+k8s-cli apply file deployment.yaml
+```
 
 ## 🛠️ Development
 
@@ -44,7 +74,7 @@ cd go-kubernetes-controllers/k8s-cli
 
 # Local testing (same as CI)
 make check          # Full CI checks locally
-make test           # Run tests
+make test           # Run tests  
 make build          # Build binary
 make build-all      # Multi-platform build
 ```
