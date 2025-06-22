@@ -1,18 +1,33 @@
 name: k8s-cli CI/CD
 
+# ──────────────────────────────
+# События
+# ──────────────────────────────
 on:
   push:
     branches: [ main, develop ]
-    tags: [ 'v*' ]
+    tags:    [ 'v*' ]      # релизы начинаются с «v»
   pull_request:
     branches: [ main ]
 
+# ──────────────────────────────
+# Глобальные переменные и права
+# ──────────────────────────────
 env:
-  GO_VERSION: '1.21'
+  GO_VERSION:  '1.21'
   BINARY_NAME: 'k8s-cli'
 
+permissions:
+  contents: read            # минимальные права по-умолчанию
+
+# ──────────────────────────────
+# Jobs
+# ──────────────────────────────
 jobs:
-  # Code Quality Check
+
+  # ────────────────────────────
+  # 1. Lint / Code Quality
+  # ────────────────────────────
   lint:
     name: Code Quality
     runs-on: ubuntu-latest
@@ -23,7 +38,7 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
@@ -37,7 +52,10 @@ jobs:
       - name: Go vet
         run: go vet ./...
 
-  # Tests
+  # ────────────────────────────
+  # 2. Unit + Integration tests
+  #    (KinD-кластер)
+  # ────────────────────────────
   test:
     name: Tests
     runs-on: ubuntu-latest
@@ -48,48 +66,59 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # 🚀 Поднимаем локальный Kubernetes-кластер
+      - name: Set up KinD cluster
+        uses: helm/kind-action@v1
+        with:
+          version: v0.23.0
+          cluster_name: ci
+          wait: 120s            # ждём готовности API-сервера
+
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
+      # (опционально) кэш модулей Go
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/go-build
+            ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: ${{ runner.os }}-go-
+
+      # Собираем бинарь, чтобы интеграционные тесты могли им пользоваться
+      - name: Build CLI binary
+        run: |
+          mkdir -p bin
+          go build -o bin/${{ env.BINARY_NAME }} main.go
+
+      # Генерируем минимальные unit-тесты (как было раньше)
       - name: Create basic tests
         run: |
           mkdir -p tests
-          cat > tests/basic_test.go << 'EOF'
+          cat > tests/basic_test.go <<'EOF'
           package tests
-          
-          import (
-              "os/exec"
-              "testing"
-          )
-          
-          func TestBuild(t *testing.T) {
-              cmd := exec.Command("go", "build", "-o", "../bin/k8s-cli", "../main.go")
-              if err := cmd.Run(); err != nil {
-                  t.Fatalf("Build failed: %v", err)
-              }
-          }
-          
+          import ("os/exec"; "testing")
           func TestHelp(t *testing.T) {
-              // Build first
-              exec.Command("mkdir", "-p", "../bin").Run()
-              exec.Command("go", "build", "-o", "../bin/k8s-cli", "../main.go").Run()
-          
-              // Test help
               cmd := exec.Command("../bin/k8s-cli", "--help")
               if err := cmd.Run(); err != nil {
-                  t.Logf("Help command not available: %v", err)
+                  t.Fatalf("help failed: %v", err)
               }
           }
           EOF
 
-      - name: Run tests
-        run: |
-          mkdir -p bin
-          go test ./tests/... -v
+      # Запускаем все unit + integration тесты
+      - name: Run Go tests
+        env:
+          KUBECONFIG: ${{ env.KUBECONFIG }}   # экспорт из kind-action
+        run: go test ./tests/... -v
 
-  # Build for different platforms
+  # ────────────────────────────
+  # 3. Кросс-платформенная сборка
+  # ────────────────────────────
   build:
     name: Build (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
@@ -104,40 +133,43 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
       - name: Build
         run: |
           mkdir -p bin
-          go build -o bin/${{ env.BINARY_NAME }}${{ matrix.os == 'windows-latest' && '.exe' || '' }} main.go
+          ext=$([ "${{ matrix.os }}" = 'windows-latest' ] && echo '.exe' || echo '')
+          go build -o bin/${{ env.BINARY_NAME }}${ext} main.go
 
-      - name: Test build (Linux/Mac)
+      - name: Smoke test
         if: matrix.os != 'windows-latest'
         run: |
           chmod +x bin/${{ env.BINARY_NAME }}
-          ./bin/${{ env.BINARY_NAME }} --help || echo "Help not available"
+          ./bin/${{ env.BINARY_NAME }} --help
 
-      - name: Test build (Windows)
+      - name: Smoke test (Windows)
         if: matrix.os == 'windows-latest'
-        run: |
-          .\bin\${{ env.BINARY_NAME }}.exe --help || echo "Help not available"
+        run: .\bin\${{ env.BINARY_NAME }}.exe --help
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.os }}
           path: k8s-cli/bin/${{ env.BINARY_NAME }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
 
-  # Release build (only for tags)
+  # ────────────────────────────
+  # 4. Release (пуш тега v*)
+  # ────────────────────────────
   release:
     name: Create Release
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     needs: build
     if: startsWith(github.ref, 'refs/tags/')
+    # 🔑 даём токену право записывать contents (fix 403)
+    permissions:
+      contents: write
     defaults:
       run:
         working-directory: ./k8s-cli
@@ -145,33 +177,29 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup Go
-        uses: actions/setup-go@v5
+        uses: actions/setup-go@v4
         with:
           go-version: ${{ env.GO_VERSION }}
 
-      - name: Get version
+      - name: Extract version
         id: version
         run: echo "VERSION=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
 
-      - name: Build for all platforms
+      - name: Build release binaries
         run: |
           mkdir -p release
           VERSION="${{ steps.version.outputs.VERSION }}"
-          
-          # Linux
-          GOOS=linux GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o release/${{ env.BINARY_NAME }}-linux-amd64 main.go
-          GOOS=linux GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o release/${{ env.BINARY_NAME }}-linux-arm64 main.go
-          
-          # macOS
-          GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o release/${{ env.BINARY_NAME }}-darwin-amd64 main.go
-          GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w -X main.version=${VERSION}" -o release/${{ env.BINARY_NAME }}-darwin-arm64 main.go
-          
-          # Windows
-          GOOS=windows GOARCH=amd64 go build -ldflags="-s -w -X main.version=${VERSION}" -o release/${{ env.BINARY_NAME }}-windows-amd64.exe main.go
-          
-          # Create checksums
-          cd release
-          sha256sum * > checksums.txt
+          for os in linux darwin windows; do
+            for arch in amd64 arm64; do
+              [ "$os" = "windows" ] && ext='.exe' || ext=''
+              [ "$os" = "windows" -a "$arch" = "arm64" ] && continue
+              GOOS=$os GOARCH=$arch go build \
+                -ldflags "-s -w -X main.version=$VERSION" \
+                -o release/${{ env.BINARY_NAME }}-${os}-${arch}${ext} \
+                main.go
+            done
+          done
+          (cd release && sha256sum * > checksums.txt)
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
@@ -179,48 +207,29 @@ jobs:
           files: k8s-cli/release/*
           body: |
             ## k8s-cli ${{ steps.version.outputs.VERSION }}
-            
-            ### Installation
-            
-            **Linux/macOS:**
-            ```bash
-            # Download the appropriate file and move to PATH
-            chmod +x k8s-cli-*
-            sudo mv k8s-cli-* /usr/local/bin/k8s-cli
-            ```
-            
-            **Windows:**
-            ```cmd
-            # Download k8s-cli-windows-amd64.exe
-            # Rename to k8s-cli.exe and add to PATH
-            ```
-            
-            ### Verification
-            ```bash
-            k8s-cli --help
-            k8s-cli --version
-            ```
+            Binaries for Linux, macOS, Windows (amd64/arm64) + checksums.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
-  # Build status report
+  # ────────────────────────────
+  # 5. Итоговый отчёт
+  # ────────────────────────────
   status:
     name: Build Status
     runs-on: ubuntu-latest
-    needs: [lint, test, build]
     if: always()
+    needs: [lint, test, build]
     steps:
       - name: Report results
         run: |
           echo "## CI/CD Results"
           echo "- Code Quality: ${{ needs.lint.result }}"
-          echo "- Tests: ${{ needs.test.result }}"
-          echo "- Build: ${{ needs.build.result }}"
-          
-          if [[ "${{ needs.lint.result }}" == "success" && 
-                "${{ needs.test.result }}" == "success" && 
+          echo "- Tests:        ${{ needs.test.result }}"
+          echo "- Build:        ${{ needs.build.result }}"
+          if [[ "${{ needs.lint.result }}" == "success" && \
+                "${{ needs.test.result }}" == "success" && \
                 "${{ needs.build.result }}" == "success" ]]; then
-            echo "✅ All checks passed successfully!"
+            echo "✅ All checks passed!"
           else
             echo "❌ Some checks failed"
             exit 1
