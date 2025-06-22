@@ -29,8 +29,8 @@ func ensureBinary(t *testing.T) {
 }
 
 func skipIfNoCluster(t *testing.T) {
-	if os.Getenv("KUBECONFIG") == "" {
-		t.Skip("KUBECONFIG not set – cluster is absent, skipping integration tests")
+	if err := exec.Command("kubectl", "--request-timeout=5s", "cluster-info").Run(); err != nil {
+		t.Skip("cluster is absent, skipping integration tests")
 	}
 }
 

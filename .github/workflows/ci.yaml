@@ -72,6 +72,9 @@ jobs:
           cluster_name: ci
           wait: 120s
 
+      - name: Export KUBECONFIG
+        run: echo "KUBECONFIG=$HOME/.kube/config" >> "$GITHUB_ENV"
+
       - name: Setup Go
         uses: actions/setup-go@v4
         with:
