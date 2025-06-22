@@ -8,9 +8,9 @@ Tool CLI for K8S.
 
 ## 🚀 CI/CD Pipeline Status
 
-[![Code Quality](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Code%20Quality&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
-[![Tests](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Tests&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
-[![Multi-Platform Build](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yml?branch=main&label=Multi-Platform%20Build&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
+[![Code Quality](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yaml?branch=main&label=Code%20Quality&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
+[![Tests](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yaml?branch=main&label=Tests&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
+[![Multi-Platform Build](https://img.shields.io/github/actions/workflow/status/dereban25/go-kubernetes-controllers/ci.yaml?branch=main&label=Multi-Platform%20Build&logo=github)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml)
 
 ### Pipeline Jobs
 
