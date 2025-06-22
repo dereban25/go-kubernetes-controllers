@@ -6,7 +6,7 @@ bin/
 *.dylib
 
 # Go specific
-go.sum
+#go.sum
 
 # IDE
 .vscode/
