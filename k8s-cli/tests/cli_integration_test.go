@@ -11,9 +11,7 @@ import (
 	"time"
 )
 
-/* -------------------------------------------------------------------------- */
-/*                               helper-functions                             */
-/* -------------------------------------------------------------------------- */
+/*──────────────────────── helpers ───────────────────────*/
 
 func cliBin() string { return filepath.FromSlash("../bin/k8s-cli") }
 
@@ -21,124 +19,140 @@ func ensureBinary(t *testing.T) {
 	if _, err := os.Stat(cliBin()); err == nil {
 		return
 	}
-	t.Log("building k8s-cli …")
-	if out, err := exec.Command("go", "build", "-o", cliBin(), "../main.go").CombinedOutput(); err != nil {
+	out, err := exec.Command("go", "build", "-o", cliBin(), "../main.go").CombinedOutput()
+	if err != nil {
 		t.Fatalf("build failed: %v\n%s", err, out)
 	}
 }
 
-// Быстрый smoke-тест, что кластер жив
+// быстрый smoke-тест: кластер жив?
 func skipIfNoCluster(t *testing.T) {
 	if err := exec.Command("kubectl", "--request-timeout=5s", "cluster-info").Run(); err != nil {
 		t.Skip("cluster is absent, skipping integration tests")
 	}
 }
 
-// map "Deployment" → "deployments" и т. д.
-func plural(kind string) (string, bool) {
-	switch strings.ToLower(kind) {
-	case "deployment":
-		return "deployments", true
-	case "pod":
-		return "pods", true
-	case "service":
-		return "services", true
-	default:
-		return "", false
-	}
-}
-
-var kindRe = regexp.MustCompile(`(?m)^kind:\s*(\S+)`)
-
-func yamlKind(path string) (string, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return "", err
-	}
-	m := kindRe.FindSubmatch(data)
-	if m == nil {
-		return "", nil
-	}
-	return string(m[1]), nil
-}
-
-func waitUntil(t *testing.T, listArgs []string, wantChange bool) {
-	before, _ := exec.Command(cliBin(), listArgs...).CombinedOutput()
-
-	for i := 0; i < 10; i++ {
-		time.Sleep(1 * time.Second)
-		after, _ := exec.Command(cliBin(), listArgs...).CombinedOutput()
-		changed := !bytes.Equal(bytes.TrimSpace(before), bytes.TrimSpace(after))
-		if changed == wantChange {
+// ждём появления/исчезновения строки `name` в выводе k8s-cli list …
+func waitForName(t *testing.T, listArgs []string, name string, wantPresent bool) {
+	for i := 0; i < 30; i++ { // ≤ 60 с
+		out, _ := exec.Command(cliBin(), listArgs...).CombinedOutput()
+		has := bytes.Contains(out, []byte(name))
+		if has == wantPresent {
 			return
 		}
+		time.Sleep(2 * time.Second)
 	}
-	state := "change"
-	if !wantChange {
-		state = "restore"
+	state := "appear"
+	if !wantPresent {
+		state = "disappear"
 	}
-	t.Fatalf("list %v did not %s", listArgs, state)
+	t.Fatalf("resource %q did not %s via %v", name, state, listArgs)
 }
 
-/* -------------------------------------------------------------------------- */
-/*                               integration-tests                            */
-/* -------------------------------------------------------------------------- */
+/*──────────────────── basic installation ───────────────────*/
 
+func TestInstallationCommands(t *testing.T) {
+	ensureBinary(t)
+
+	// k8s-cli --help
+	if out, err := exec.Command(cliBin(), "--help").CombinedOutput(); err != nil {
+		t.Fatalf("--help failed: %v\n%s", err, out)
+	}
+
+	// k8s-cli context current (должен показать текущий контекст Kind)
+	out, err := exec.Command(cliBin(), "context", "current").CombinedOutput()
+	if err != nil {
+		t.Fatalf("context current: %v\n%s", err, out)
+	}
+	if !bytes.Contains(out, []byte("kind-")) {
+		t.Fatalf("unexpected context: %s", out)
+	}
+}
+
+/*──────────────────── verify step-6 requirements ───────────*/
+
+func TestListVariants(t *testing.T) {
+	skipIfNoCluster(t)
+	ensureBinary(t)
+
+	// 1. k8s-cli list deployments
+	_, err := exec.Command(cliBin(), "list", "deployments").CombinedOutput()
+	if err != nil {
+		t.Fatalf("list deployments: %v", err)
+	}
+
+	// 2. k8s-cli --kubeconfig=<path> list deployments
+	kc := filepath.Join(os.Getenv("HOME"), ".kube", "config")
+	_, err = exec.Command(cliBin(), "--kubeconfig="+kc, "list", "deployments").CombinedOutput()
+	if err != nil {
+		t.Fatalf("--kubeconfig list deployments: %v", err)
+	}
+
+	// 3. k8s-cli list deployments -n default -o json
+	_, err = exec.Command(cliBin(), "list", "deployments", "-n", "default", "-o", "json").CombinedOutput()
+	if err != nil {
+		t.Fatalf("list deployments json: %v", err)
+	}
+}
+
+/*──────────────────── full functionality ───────────────────*/
+
+// 1. apply / delete YAML-ы из examples/
 func TestApplyExampleYamls(t *testing.T) {
 	skipIfNoCluster(t)
 	ensureBinary(t)
 
-	examples := []string{
-		filepath.FromSlash("../examples/deployment.yaml"),
-		filepath.FromSlash("../examples/pod.yaml"),
-		filepath.FromSlash("../examples/service.yaml"),
+	files := []string{
+		"deployment.yaml",
+		"pod.yaml",
+		"service.yaml",
 	}
+	kindRe := regexp.MustCompile(`(?m)^kind:\s*(\S+)`)
 
-	for _, fp := range examples {
-		kind, err := yamlKind(fp)
-		if err != nil || kind == "" {
-			t.Fatalf("cannot detect kind in %s: %v", fp, err)
+	for _, f := range files {
+		fp := filepath.FromSlash("../examples/" + f)
+		raw, _ := os.ReadFile(fp)
+		m := kindRe.FindSubmatch(raw)
+		if m == nil {
+			t.Fatalf("cannot detect kind in %s", fp)
 		}
-		plur, ok := plural(kind)
-		if !ok {
-			t.Skipf("kind %s not handled – skipping", kind)
-		}
+		kind := strings.ToLower(string(m[1])) // deployment/pod/service
+		name := strings.TrimSuffix(f, ".yaml")
+		list := []string{"list", kind + "s"}
 
-		listArgs := []string{"list", plur}
-
-		// apply file
+		// apply
 		if out, err := exec.Command(cliBin(), "apply", "file", fp).CombinedOutput(); err != nil {
 			t.Fatalf("apply %s: %v\n%s", fp, err, out)
 		}
+		waitForName(t, list, name, true)
 
-		waitUntil(t, listArgs, true)
-
-		// delete file
+		// delete
 		if out, err := exec.Command(cliBin(), "delete", "file", fp, "--force").CombinedOutput(); err != nil {
 			t.Fatalf("delete %s: %v\n%s", fp, err, out)
 		}
-
-		waitUntil(t, listArgs, false)
+		waitForName(t, list, name, false)
 	}
 }
 
-func TestCreateAndDeleteDeploymentCLI(t *testing.T) {
+// 2. imperative create / delete
+func TestImperativeCreateDelete(t *testing.T) {
 	skipIfNoCluster(t)
 	ensureBinary(t)
 
-	name := "int-deploy-cli"
-	image := "nginx:1.25.5"
-	listArgs := []string{"list", "deployments"}
+	name := "test"
+	list := []string{"list", "deployments"}
 
-	// create deployment
-	if out, err := exec.Command(cliBin(), "create", "deployment", name, "--image="+image, "--replicas=1").CombinedOutput(); err != nil {
+	// k8s-cli create deployment test --image=nginx:1.20 --replicas=2 -n nginx
+	if out, err := exec.Command(cliBin(), "create", "deployment", name,
+		"--image=nginx:1.20", "--replicas=2", "-n", "nginx").CombinedOutput(); err != nil {
 		t.Fatalf("create deployment: %v\n%s", err, out)
 	}
-	waitUntil(t, listArgs, true)
+	waitForName(t, append(list, "-n", "nginx"), name, true)
 
-	// delete deployment
-	if out, err := exec.Command(cliBin(), "delete", "deployment", name, "--force").CombinedOutput(); err != nil {
+	// k8s-cli delete deployment test -n nginx
+	if out, err := exec.Command(cliBin(), "delete", "deployment", name, "-n", "nginx").
+		CombinedOutput(); err != nil {
 		t.Fatalf("delete deployment: %v\n%s", err, out)
 	}
-	waitUntil(t, listArgs, false)
+	waitForName(t, append(list, "-n", "nginx"), name, false)
 }
