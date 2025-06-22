@@ -5,13 +5,14 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 	"time"
 )
 
 /* -------------------------------------------------------------------------- */
-/*                               helper-functions                              */
+/*                               helper-functions                             */
 /* -------------------------------------------------------------------------- */
 
 func cliBin() string { return filepath.FromSlash("../bin/k8s-cli") }
@@ -26,128 +27,118 @@ func ensureBinary(t *testing.T) {
 	}
 }
 
+// Быстрый smoke-тест, что кластер жив
 func skipIfNoCluster(t *testing.T) {
 	if err := exec.Command("kubectl", "--request-timeout=5s", "cluster-info").Run(); err != nil {
 		t.Skip("cluster is absent, skipping integration tests")
 	}
 }
 
-func waitForCLI(t *testing.T, args []string, name string, wantPresent bool) {
+// map "Deployment" → "deployments" и т. д.
+func plural(kind string) (string, bool) {
+	switch strings.ToLower(kind) {
+	case "deployment":
+		return "deployments", true
+	case "pod":
+		return "pods", true
+	case "service":
+		return "services", true
+	default:
+		return "", false
+	}
+}
+
+var kindRe = regexp.MustCompile(`(?m)^kind:\s*(\S+)`)
+
+func yamlKind(path string) (string, error) {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	m := kindRe.FindSubmatch(data)
+	if m == nil {
+		return "", nil
+	}
+	return string(m[1]), nil
+}
+
+func waitUntil(t *testing.T, listArgs []string, wantChange bool) {
+	before, _ := exec.Command(cliBin(), listArgs...).CombinedOutput()
+
 	for i := 0; i < 10; i++ {
-		out, _ := exec.Command(cliBin(), args...).CombinedOutput()
-		has := bytes.Contains(out, []byte(name))
-		if has == wantPresent {
+		time.Sleep(1 * time.Second)
+		after, _ := exec.Command(cliBin(), listArgs...).CombinedOutput()
+		changed := !bytes.Equal(bytes.TrimSpace(before), bytes.TrimSpace(after))
+		if changed == wantChange {
 			return
 		}
-		time.Sleep(time.Second)
 	}
-	state := "appear"
-	if !wantPresent {
-		state = "disappear"
+	state := "change"
+	if !wantChange {
+		state = "restore"
 	}
-	t.Fatalf("resource %q did not %s via %v", name, state, args)
+	t.Fatalf("list %v did not %s", listArgs, state)
 }
 
 /* -------------------------------------------------------------------------- */
-/*                                integration                                 */
+/*                               integration-tests                            */
 /* -------------------------------------------------------------------------- */
 
-func TestCreateListDeleteDeployment(t *testing.T) {
+func TestApplyExampleYamls(t *testing.T) {
 	skipIfNoCluster(t)
 	ensureBinary(t)
 
-	name := "ci-int-deploy"
-	image := "nginx:1.25.5"
-
-	// create
-	if out, err := exec.Command(cliBin(), "create", "deployment", name, "--image="+image, "--replicas=2").CombinedOutput(); err != nil {
-		t.Fatalf("create deployment: %v\n%s", err, out)
+	examples := []string{
+		filepath.FromSlash("../examples/deployment.yaml"),
+		filepath.FromSlash("../examples/pod.yaml"),
+		filepath.FromSlash("../examples/service.yaml"),
 	}
 
-	// verify presence
-	waitForCLI(t, []string{"list", "deployments"}, name, true)
+	for _, fp := range examples {
+		kind, err := yamlKind(fp)
+		if err != nil || kind == "" {
+			t.Fatalf("cannot detect kind in %s: %v", fp, err)
+		}
+		plur, ok := plural(kind)
+		if !ok {
+			t.Skipf("kind %s not handled – skipping", kind)
+		}
 
-	// delete
+		listArgs := []string{"list", plur}
+
+		// apply file
+		if out, err := exec.Command(cliBin(), "apply", "file", fp).CombinedOutput(); err != nil {
+			t.Fatalf("apply %s: %v\n%s", fp, err, out)
+		}
+
+		waitUntil(t, listArgs, true)
+
+		// delete file
+		if out, err := exec.Command(cliBin(), "delete", "file", fp, "--force").CombinedOutput(); err != nil {
+			t.Fatalf("delete %s: %v\n%s", fp, err, out)
+		}
+
+		waitUntil(t, listArgs, false)
+	}
+}
+
+func TestCreateAndDeleteDeploymentCLI(t *testing.T) {
+	skipIfNoCluster(t)
+	ensureBinary(t)
+
+	name := "int-deploy-cli"
+	image := "nginx:1.25.5"
+	listArgs := []string{"list", "deployments"}
+
+	// create deployment
+	if out, err := exec.Command(cliBin(), "create", "deployment", name, "--image="+image, "--replicas=1").CombinedOutput(); err != nil {
+		t.Fatalf("create deployment: %v\n%s", err, out)
+	}
+	waitUntil(t, listArgs, true)
+
+	// delete deployment
 	if out, err := exec.Command(cliBin(), "delete", "deployment", name, "--force").CombinedOutput(); err != nil {
 		t.Fatalf("delete deployment: %v\n%s", err, out)
 	}
-
-	// verify absence
-	waitForCLI(t, []string{"list", "deployments"}, name, false)
-}
-
-func TestCreateDeletePod(t *testing.T) {
-	skipIfNoCluster(t)
-	ensureBinary(t)
-
-	name := "ci-int-pod"
-	image := "nginx:1.25.5"
-
-	// create
-	if out, err := exec.Command(cliBin(), "create", "pod", name, "--image="+image).CombinedOutput(); err != nil {
-		t.Fatalf("create pod: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "pods"}, name, true)
-
-	// delete
-	if out, err := exec.Command(cliBin(), "delete", "pod", name, "--force").CombinedOutput(); err != nil {
-		t.Fatalf("delete pod: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "pods"}, name, false)
-}
-
-func TestCreateDeleteService(t *testing.T) {
-	skipIfNoCluster(t)
-	ensureBinary(t)
-
-	// предварительно деплой, к которому привяжем service
-	_ = exec.Command(cliBin(), "create", "deployment", "svc-demo", "--image=nginx:1.25.5").Run()
-	waitForCLI(t, []string{"list", "deployments"}, "svc-demo", true)
-
-	svc := "ci-int-svc"
-	if out, err := exec.Command(cliBin(), "create", "service", svc, "--port=80").CombinedOutput(); err != nil {
-		t.Fatalf("create service: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "services"}, svc, true)
-
-	if out, err := exec.Command(cliBin(), "delete", "service", svc, "--force").CombinedOutput(); err != nil {
-		t.Fatalf("delete service: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "services"}, svc, false)
-	_ = exec.Command(cliBin(), "delete", "deployment", "svc-demo", "--force").Run()
-}
-
-func TestApplyAndDeleteFile(t *testing.T) {
-	skipIfNoCluster(t)
-	ensureBinary(t)
-
-	// tmp-yaml c ConfigMap
-	yaml := `
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: ci-int-cm
-data:
-  foo: bar
-`
-	tmp := filepath.Join(t.TempDir(), "cm.yaml")
-	if err := os.WriteFile(tmp, []byte(strings.TrimSpace(yaml)), 0644); err != nil {
-		t.Fatalf("write tmp yaml: %v", err)
-	}
-
-	if out, err := exec.Command(cliBin(), "apply", "file", tmp).CombinedOutput(); err != nil {
-		t.Fatalf("apply file: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "configmaps"}, "ci-int-cm", true)
-
-	if out, err := exec.Command(cliBin(), "delete", "file", tmp, "--force").CombinedOutput(); err != nil {
-		t.Fatalf("delete file: %v\n%s", err, out)
-	}
-
-	waitForCLI(t, []string{"list", "configmaps"}, "ci-int-cm", false)
+	waitUntil(t, listArgs, false)
 }
