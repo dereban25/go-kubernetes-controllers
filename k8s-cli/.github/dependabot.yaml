@@ -1,0 +1,29 @@
+version: 2
+updates:
+  # Go modules
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    reviewers:
+      - "dereban25"
+    assignees:
+      - "dereban25"
+    commit-message:
+      prefix: "deps"
+      include: "scope"
+
+  # GitHub Actions
+  - package-ecosystem: "github-actions"
+    directory: "/.github/workflows"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    reviewers:
+      - "dereban25"
+    assignees:
+      - "dereban25"
+    commit-message:
+      prefix: "ci"
+      include: "scope"

@@ -1,0 +1,49 @@
+# golangci-lint configuration
+run:
+  timeout: 5m
+  modules-download-mode: readonly
+
+linters-settings:
+  gofmt:
+    simplify: true
+
+  govet:
+    check-shadowing: true
+
+  golint:
+    min-confidence: 0.8
+
+  misspell:
+    locale: US
+
+  gocyclo:
+    min-complexity: 15
+
+linters:
+  enable:
+    - gofmt
+    - govet
+    - golint
+    - misspell
+    - gocyclo
+    - ineffassign
+    - deadcode
+    - varcheck
+    - structcheck
+    - errcheck
+    - gosimple
+    - staticcheck
+    - unused
+    - typecheck
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - errcheck
+        - dupl
+        - gosec
+    - path: examples/
+      linters:
+        - errcheck
