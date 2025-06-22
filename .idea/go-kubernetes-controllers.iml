@@ -5,5 +5,7 @@
     <content url="file://$MODULE_DIR$" />
     <orderEntry type="inheritedJdk" />
     <orderEntry type="sourceFolder" forTests="false" />
+    <orderEntry type="module" module-name="Github" />
+    <orderEntry type="module" module-name="HitZone" />
   </component>
 </module>

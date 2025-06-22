@@ -2,5 +2,47 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/ELK-with-ECK-Operator" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/AnimaClient" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/DSL-Teamcity-gcp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/DevOps-tools" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/DevOps-tools/istio-samples" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/MetaServer" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/MetaServer.Auth" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/MetaServer.Auth/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/MetaServer/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/aws-ebs-csi-driver" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/azcaf" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/gcp-infra" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/helm_values" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/infra-gcp-argocd" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/infra-helm" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/infrastructure" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/kuber-service" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/kuber-service/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/learn-vault-agent" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/meta-server" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/meta-server/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/meta-server/anima-configs" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/monitor-service" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/monitor-service/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/scheduler-service" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/scheduler-service/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/teamcity-dsl" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/teamcity-dsl-job" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/terminal-service" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/terminal-service/Shared" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/terraform" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/terraform-modules-aws" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/GitHub_Repo/vault-guides" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/Gitlab/bi-dataflow-templates" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/Gitlab/infra-gcp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/Gitlab/infra-gcp-argocd" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/k8s-lessons" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../HitZone/kuber_nginx_gitlab/kubernetes-gitlab-demo" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SQOR/Github" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SQOR/Github/infrastructure-gcp" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SQOR/Github/integration" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../SQOR/Github/python-ai" vcs="Git" />
   </component>
 </project>

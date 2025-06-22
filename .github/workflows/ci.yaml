@@ -125,7 +125,7 @@ jobs:
           .\bin\${{ env.BINARY_NAME }}.exe --help || echo "Help not available"
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.os }}
           path: k8s-cli/bin/${{ env.BINARY_NAME }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}

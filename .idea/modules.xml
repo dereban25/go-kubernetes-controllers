@@ -2,6 +2,8 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/../SQOR/Github/.idea/Github.iml" filepath="$PROJECT_DIR$/../SQOR/Github/.idea/Github.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../HitZone/.idea/HitZone.iml" filepath="$PROJECT_DIR$/../HitZone/.idea/HitZone.iml" />
       <module fileurl="file://$PROJECT_DIR$/.idea/go-kubernetes-controllers.iml" filepath="$PROJECT_DIR$/.idea/go-kubernetes-controllers.iml" />
     </modules>
   </component>
