@@ -218,3 +218,96 @@ jobs:
             echo "❌ Some checks failed"
             exit 1
           fi
+detailed-status:
+  name: 📊 Detailed Status Report
+  runs-on: ubuntu-latest
+  needs: [lint, test, build]
+  if: always()
+  steps:
+    - name: Generate Detailed Status
+      run: |
+        echo "# 📊 k8s-cli CI/CD Detailed Status Report" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🚀 Pipeline Overview" >> $GITHUB_STEP_SUMMARY
+        echo "| Job | Status | Duration | Result |" >> $GITHUB_STEP_SUMMARY
+        echo "|-----|--------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 🔍 Code Quality | ${{ needs.lint.result == 'success' && '✅ Success' || '❌ Failed' }} | ~1min | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🧪 Tests | ${{ needs.test.result == 'success' && '✅ Success' || '❌ Failed' }} | ~1min | ${{ needs.test.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🔨 Build (All Platforms) | ${{ needs.build.result == 'success' && '✅ Success' || '❌ Failed' }} | ~3min | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        
+        # Overall Status
+        if [[ "${{ needs.lint.result }}" == "success" && 
+              "${{ needs.test.result }}" == "success" && 
+              "${{ needs.build.result }}" == "success" ]]; then
+          echo "## 🎉 Overall Status: SUCCESS" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ All pipeline stages completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Multi-platform binaries are ready" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Artifacts uploaded and available for download" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🚀 Next Steps:" >> $GITHUB_STEP_SUMMARY
+          echo "- Download artifacts from this run" >> $GITHUB_STEP_SUMMARY
+          echo "- Create a release tag: \`git tag v1.0.0 && git push origin v1.0.0\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Test binaries on target platforms" >> $GITHUB_STEP_SUMMARY
+        else
+          echo "## ❌ Overall Status: FAILED" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "❌ One or more pipeline stages failed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔧 Failed Jobs:" >> $GITHUB_STEP_SUMMARY
+          [[ "${{ needs.lint.result }}" != "success" ]] && echo "- ❌ Code Quality: Check formatting and go vet errors" >> $GITHUB_STEP_SUMMARY
+          [[ "${{ needs.test.result }}" != "success" ]] && echo "- ❌ Tests: Review test failures and fix issues" >> $GITHUB_STEP_SUMMARY
+          [[ "${{ needs.build.result }}" != "success" ]] && echo "- ❌ Build: Check compilation errors across platforms" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🔄 To Fix:" >> $GITHUB_STEP_SUMMARY
+          echo "1. Review the failed job logs above" >> $GITHUB_STEP_SUMMARY
+          echo "2. Fix the issues in your code" >> $GITHUB_STEP_SUMMARY
+          echo "3. Test locally: \`make check\`" >> $GITHUB_STEP_SUMMARY
+          echo "4. Push fixes to trigger new build" >> $GITHUB_STEP_SUMMARY
+          exit 1
+        fi
+        
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "---" >> $GITHUB_STEP_SUMMARY
+        echo "*Generated on $(date -u '+%Y-%m-%d %H:%M:%S UTC')*" >> $GITHUB_STEP_SUMMARY
+
+    - name: Comment on PR (if PR)
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v6
+      with:
+        script: |
+          const status = {
+            lint: '${{ needs.lint.result }}',
+            test: '${{ needs.test.result }}',
+            build: '${{ needs.build.result }}'
+          };
+          
+          const statusEmoji = {
+            success: '✅',
+            failure: '❌',
+            cancelled: '⏹️',
+            skipped: '⏭️'
+          };
+          
+          const body = `## 🚀 CI/CD Pipeline Results
+          
+          | Job | Status | Result |
+          |-----|--------|--------|
+          | Code Quality | ${statusEmoji[status.lint] || '❓'} | ${status.lint} |
+          | Tests | ${statusEmoji[status.test] || '❓'} | ${status.test} |
+          | Build | ${statusEmoji[status.build] || '❓'} | ${status.build} |
+          
+          ${Object.values(status).every(s => s === 'success') 
+            ? '🎉 **All checks passed!** Ready to merge.' 
+            : '❌ **Some checks failed.** Please review and fix issues.'}
+          
+          [View full pipeline →](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+          `;
+          
+          github.rest.issues.createComment({
+            issue_number: context.issue.number,
+            owner: context.repo.owner,
+            repo: context.repo.repo,
+            body: body
+          });
