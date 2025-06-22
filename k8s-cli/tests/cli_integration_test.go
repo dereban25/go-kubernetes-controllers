@@ -144,15 +144,15 @@ func TestImperativeCreateDelete(t *testing.T) {
 
 	// k8s-cli create deployment test --image=nginx:1.20 --replicas=2 -n nginx
 	if out, err := exec.Command(cliBin(), "create", "deployment", name,
-		"--image=nginx:1.20", "--replicas=2", "-n", "nginx").CombinedOutput(); err != nil {
+		"--image=nginx:1.20", "--replicas=2", "-n", "default").CombinedOutput(); err != nil {
 		t.Fatalf("create deployment: %v\n%s", err, out)
 	}
-	waitForName(t, append(list, "-n", "nginx"), name, true)
+	waitForName(t, append(list, "-n", "default"), name, true)
 
 	// k8s-cli delete deployment test -n nginx
-	if out, err := exec.Command(cliBin(), "delete", "deployment", name, "-n", "nginx").
+	if out, err := exec.Command(cliBin(), "delete", "deployment", name, "-n", "default").
 		CombinedOutput(); err != nil {
 		t.Fatalf("delete deployment: %v\n%s", err, out)
 	}
-	waitForName(t, append(list, "-n", "nginx"), name, false)
+	waitForName(t, append(list, "-n", "default"), name, false)
 }
