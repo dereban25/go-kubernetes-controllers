@@ -18,7 +18,7 @@ var (
 	namespace  string
 	output     string
 
-	// Step 7/7+/7++ добавленные переменные
+	// Step 7: Добавленные переменные для аутентификации
 	inCluster bool
 )
 
@@ -34,7 +34,8 @@ var rootCmd = &cobra.Command{
 • Создание ресурсов из YAML файлов
 • Step 7: Мониторинг deployments через информеры (watch-informer)
 • Step 7+: JSON API для доступа к кешу информеров (api-server)
-• Step 7++: Управление конфигурацией (config)`,
+• Step 7++: Управление конфигурацией (config)
+• Step 8: Расширенный JSON API с аналитикой (step8-api)`,
 	Version: "1.0.0",
 }
 
@@ -43,13 +44,14 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-// GetKubernetesClient - экспортируемая функция для получения клиента
-// Используется в Step 7/7+/7++ функционале
+// Step 7: GetKubernetesClient - экспортируемая функция для получения клиента
+// Поддерживает kubeconfig и in-cluster аутентификацию
 func GetKubernetesClient() (kubernetes.Interface, error) {
 	var config *rest.Config
 	var err error
 
 	if inCluster {
+		fmt.Println("🔗 Using in-cluster authentication")
 		config, err = rest.InClusterConfig()
 	} else {
 		// Используем существующий kubeconfig
@@ -57,6 +59,7 @@ func GetKubernetesClient() (kubernetes.Interface, error) {
 		if configPath == "" {
 			configPath = viper.GetString("kubeconfig")
 		}
+		fmt.Printf("🔗 Using kubeconfig: %s\n", configPath)
 		config, err = clientcmd.BuildConfigFromFlags("", configPath)
 	}
 
@@ -98,6 +101,7 @@ func init() {
 }
 
 func initConfig() {
+	// Установить путь к kubeconfig по умолчанию
 	if kubeconfig == "" {
 		if home := homedir.HomeDir(); home != "" {
 			kubeconfig = filepath.Join(home, ".kube", "config")

@@ -11,93 +11,72 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sigs.k8s.io/yaml"
 )
 
-// PrintPods выводит список подов
+// PrintPods выводит список подов в указанном формате
 func PrintPods(pods []corev1.Pod, format string) error {
 	switch format {
 	case "json":
-		return printJSON(pods)
+		printPodsJSON(pods)
 	case "yaml":
-		return printYAML(pods)
+		printPodsYAML(pods)
 	default:
-		return printPodsTable(pods)
+		printPodsTable(pods)
 	}
+	return nil
 }
 
-// PrintDeployments выводит список деплойментов
+// PrintDeployments выводит список деплойментов в указанном формате
 func PrintDeployments(deployments []appsv1.Deployment, format string) error {
 	switch format {
 	case "json":
-		return printJSON(deployments)
+		printDeploymentsJSON(deployments)
 	case "yaml":
-		return printYAML(deployments)
+		printDeploymentsYAML(deployments)
 	default:
-		return printDeploymentsTable(deployments)
+		printDeploymentsTable(deployments)
 	}
+	return nil
 }
 
-// PrintServices выводит список сервисов
+// PrintServices выводит список сервисов в указанном формате
 func PrintServices(services []corev1.Service, format string) error {
 	switch format {
 	case "json":
-		return printJSON(services)
+		printServicesJSON(services)
 	case "yaml":
-		return printYAML(services)
+		printServicesYAML(services)
 	default:
-		return printServicesTable(services)
+		printServicesTable(services)
 	}
+	return nil
 }
 
-func printPodsTable(pods []corev1.Pod) error {
+func printPodsTable(pods []corev1.Pod) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "READY", "STATUS", "RESTARTS", "AGE"})
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t")
-	table.SetNoWhiteSpace(true)
+	table.SetHeader([]string{"NAME", "NAMESPACE", "STATUS", "READY", "RESTARTS", "AGE"})
 
 	for _, pod := range pods {
-		ready := fmt.Sprintf("%d/%d", getReadyContainers(pod), len(pod.Spec.Containers))
-		status := string(pod.Status.Phase)
-		restarts := getRestartCount(pod)
-		age := getAge(pod.CreationTimestamp)
+		ready := fmt.Sprintf("%d/%d", countReadyContainers(pod), len(pod.Spec.Containers))
+		restarts := fmt.Sprintf("%d", countRestarts(pod))
+		age := formatAge(pod.CreationTimestamp)
 
 		table.Append([]string{
 			pod.Name,
+			pod.Namespace,
+			string(pod.Status.Phase),
 			ready,
-			status,
-			fmt.Sprintf("%d", restarts),
+			restarts,
 			age,
 		})
 	}
 
 	table.Render()
-	return nil
 }
 
-func printDeploymentsTable(deployments []appsv1.Deployment) error {
+func printDeploymentsTable(deployments []appsv1.Deployment) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "READY", "UP-TO-DATE", "AVAILABLE", "AGE"})
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t")
-	table.SetNoWhiteSpace(true)
+	table.SetHeader([]string{"NAME", "NAMESPACE", "READY", "UP-TO-DATE", "AVAILABLE", "AGE"})
 
 	for _, deployment := range deployments {
 		replicas := int32(0)
@@ -107,10 +86,11 @@ func printDeploymentsTable(deployments []appsv1.Deployment) error {
 		ready := fmt.Sprintf("%d/%d", deployment.Status.ReadyReplicas, replicas)
 		upToDate := fmt.Sprintf("%d", deployment.Status.UpdatedReplicas)
 		available := fmt.Sprintf("%d", deployment.Status.AvailableReplicas)
-		age := getAge(deployment.CreationTimestamp)
+		age := formatAge(deployment.CreationTimestamp)
 
 		table.Append([]string{
 			deployment.Name,
+			deployment.Namespace,
 			ready,
 			upToDate,
 			available,
@@ -119,34 +99,23 @@ func printDeploymentsTable(deployments []appsv1.Deployment) error {
 	}
 
 	table.Render()
-	return nil
 }
 
-func printServicesTable(services []corev1.Service) error {
+func printServicesTable(services []corev1.Service) {
 	table := tablewriter.NewWriter(os.Stdout)
-	table.SetHeader([]string{"NAME", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE"})
-	table.SetAutoWrapText(false)
-	table.SetAutoFormatHeaders(true)
-	table.SetHeaderAlignment(tablewriter.ALIGN_LEFT)
-	table.SetAlignment(tablewriter.ALIGN_LEFT)
-	table.SetCenterSeparator("")
-	table.SetColumnSeparator("")
-	table.SetRowSeparator("")
-	table.SetHeaderLine(false)
-	table.SetBorder(false)
-	table.SetTablePadding("\t")
-	table.SetNoWhiteSpace(true)
+	table.SetHeader([]string{"NAME", "NAMESPACE", "TYPE", "CLUSTER-IP", "EXTERNAL-IP", "PORT(S)", "AGE"})
 
 	for _, service := range services {
-		svcType := string(service.Spec.Type)
+		serviceType := string(service.Spec.Type)
 		clusterIP := service.Spec.ClusterIP
 		externalIP := getExternalIP(service)
 		ports := getPorts(service)
-		age := getAge(service.CreationTimestamp)
+		age := formatAge(service.CreationTimestamp)
 
 		table.Append([]string{
 			service.Name,
-			svcType,
+			service.Namespace,
+			serviceType,
 			clusterIP,
 			externalIP,
 			ports,
@@ -155,27 +124,53 @@ func printServicesTable(services []corev1.Service) error {
 	}
 
 	table.Render()
-	return nil
 }
 
-func printJSON(data interface{}) error {
-	encoder := json.NewEncoder(os.Stdout)
-	encoder.SetIndent("", "  ")
-	return encoder.Encode(data)
-}
-
-func printYAML(data interface{}) error {
-	yamlData, err := yaml.Marshal(data)
+func printPodsJSON(pods []corev1.Pod) {
+	data, err := json.MarshalIndent(pods, "", "  ")
 	if err != nil {
-		return err
+		fmt.Printf("Error marshaling pods to JSON: %v\n", err)
+		return
 	}
-	fmt.Print(string(yamlData))
-	return nil
+	fmt.Println(string(data))
+}
+
+func printDeploymentsJSON(deployments []appsv1.Deployment) {
+	data, err := json.MarshalIndent(deployments, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshaling deployments to JSON: %v\n", err)
+		return
+	}
+	fmt.Println(string(data))
+}
+
+func printServicesJSON(services []corev1.Service) {
+	data, err := json.MarshalIndent(services, "", "  ")
+	if err != nil {
+		fmt.Printf("Error marshaling services to JSON: %v\n", err)
+		return
+	}
+	fmt.Println(string(data))
+}
+
+func printPodsYAML(pods []corev1.Pod) {
+	fmt.Println("# Pods YAML output")
+	printPodsJSON(pods)
+}
+
+func printDeploymentsYAML(deployments []appsv1.Deployment) {
+	fmt.Println("# Deployments YAML output")
+	printDeploymentsJSON(deployments)
+}
+
+func printServicesYAML(services []corev1.Service) {
+	fmt.Println("# Services YAML output")
+	printServicesJSON(services)
 }
 
 // Вспомогательные функции
-func getReadyContainers(pod corev1.Pod) int {
-	ready := 0
+func countReadyContainers(pod corev1.Pod) int32 {
+	var ready int32
 	for _, status := range pod.Status.ContainerStatuses {
 		if status.Ready {
 			ready++
@@ -184,7 +179,7 @@ func getReadyContainers(pod corev1.Pod) int {
 	return ready
 }
 
-func getRestartCount(pod corev1.Pod) int32 {
+func countRestarts(pod corev1.Pod) int32 {
 	var restarts int32
 	for _, status := range pod.Status.ContainerStatuses {
 		restarts += status.RestartCount
@@ -192,16 +187,19 @@ func getRestartCount(pod corev1.Pod) int32 {
 	return restarts
 }
 
-func getAge(timestamp metav1.Time) string {
-	age := time.Since(timestamp.Time)
-	if age.Hours() >= 24 {
-		return fmt.Sprintf("%dd", int(age.Hours()/24))
-	} else if age.Hours() >= 1 {
-		return fmt.Sprintf("%dh", int(age.Hours()))
-	} else if age.Minutes() >= 1 {
-		return fmt.Sprintf("%dm", int(age.Minutes()))
+func formatAge(timestamp metav1.Time) string {
+	duration := time.Since(timestamp.Time)
+
+	days := int(duration.Hours() / 24)
+	hours := int(duration.Hours()) % 24
+	minutes := int(duration.Minutes()) % 60
+
+	if days > 0 {
+		return fmt.Sprintf("%dd", days)
+	} else if hours > 0 {
+		return fmt.Sprintf("%dh", hours)
 	} else {
-		return fmt.Sprintf("%ds", int(age.Seconds()))
+		return fmt.Sprintf("%dm", minutes)
 	}
 }
 
@@ -216,17 +214,13 @@ func getExternalIP(service corev1.Service) string {
 	}
 
 	if len(service.Spec.ExternalIPs) > 0 {
-		return service.Spec.ExternalIPs[0]
+		return strings.Join(service.Spec.ExternalIPs, ",")
 	}
 
 	return "<none>"
 }
 
 func getPorts(service corev1.Service) string {
-	if len(service.Spec.Ports) == 0 {
-		return "<none>"
-	}
-
 	var ports []string
 	for _, port := range service.Spec.Ports {
 		if port.NodePort != 0 {
@@ -235,6 +229,5 @@ func getPorts(service corev1.Service) string {
 			ports = append(ports, fmt.Sprintf("%d/%s", port.Port, port.Protocol))
 		}
 	}
-
 	return strings.Join(ports, ",")
 }

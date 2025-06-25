@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"io/ioutil"
-	"k8s-cli/internal/k8s"
+	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/internal/k8s"
 	"strings"
 
 	"github.com/spf13/cobra"

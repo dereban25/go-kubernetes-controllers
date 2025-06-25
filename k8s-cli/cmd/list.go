@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"k8s-cli/internal/k8s"
-	"k8s-cli/internal/utils"
+	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/internal/k8s"
+	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/internal/utils"
 
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
