@@ -25,9 +25,6 @@ import (
 
 // FrontendPageSpec defines the desired state of FrontendPage
 type FrontendPageSpec struct {
-	// INSERT ADDITIONAL SPEC FIELDS - desired state of cluster
-	// Important: Run "make generate" to regenerate code after modifying this file
-
 	// Title of the frontend page
 	Title string `json:"title"`
 
@@ -38,43 +35,58 @@ type FrontendPageSpec struct {
 	Path string `json:"path"`
 
 	// Template to use for rendering
+	// +optional
 	Template string `json:"template,omitempty"`
 
 	// Configuration for the frontend page
+	// +optional
 	Config map[string]string `json:"config,omitempty"`
 
 	// Replicas for the frontend deployment
+	// +optional
+	// +kubebuilder:default=1
+	// +kubebuilder:validation:Minimum=0
 	Replicas int32 `json:"replicas,omitempty"`
 
 	// Image for the frontend container
+	// +optional
+	// +kubebuilder:default="nginx:1.20"
 	Image string `json:"image,omitempty"`
 }
 
 // FrontendPageStatus defines the observed state of FrontendPage
 type FrontendPageStatus struct {
-	// INSERT ADDITIONAL STATUS FIELD - define observed state of cluster
-	// Important: Run "make generate" to regenerate code after modifying this file
-
 	// Phase represents the current phase of the FrontendPage
+	// +optional
 	Phase string `json:"phase,omitempty"`
 
 	// Ready indicates if the frontend page is ready
+	// +optional
 	Ready bool `json:"ready,omitempty"`
 
 	// URL where the frontend page is accessible
+	// +optional
 	URL string `json:"url,omitempty"`
 
-	// Conditions represent the latest available observations
-	Conditions []metav1.Condition `json:"conditions,omitempty"`
-
 	// DeploymentName is the name of the created deployment
+	// +optional
 	DeploymentName string `json:"deploymentName,omitempty"`
 
 	// ServiceName is the name of the created service
+	// +optional
 	ServiceName string `json:"serviceName,omitempty"`
 
 	// LastUpdated timestamp
-	LastUpdated metav1.Time `json:"lastUpdated,omitempty"`
+	// +optional
+	LastUpdated string `json:"lastUpdated,omitempty"`
+
+	// ObservedGeneration is the generation observed by the controller
+	// +optional
+	ObservedGeneration int64 `json:"observedGeneration,omitempty"`
+
+	// Message is a human-readable message indicating details about the status
+	// +optional
+	Message string `json:"message,omitempty"`
 }
 
 //+kubebuilder:object:root=true

@@ -94,24 +94,14 @@ func (r *FrontendPageReconciler) Reconcile(ctx context.Context, req ctrl.Request
 	frontendPage.Status.URL = url
 	frontendPage.Status.DeploymentName = deployment.Name
 	frontendPage.Status.ServiceName = service.Name
-	frontendPage.Status.LastUpdated = metav1.Now()
-
-	// Update conditions
-	condition := metav1.Condition{
-		Type:    "Ready",
-		Status:  metav1.ConditionFalse,
-		Reason:  "DeploymentNotReady",
-		Message: fmt.Sprintf("Deployment %s is not ready", deployment.Name),
-	}
+	frontendPage.Status.LastUpdated = time.Now().Format(time.RFC3339)
+	frontendPage.Status.ObservedGeneration = frontendPage.Generation
 
 	if ready {
-		condition.Status = metav1.ConditionTrue
-		condition.Reason = "DeploymentReady"
-		condition.Message = fmt.Sprintf("Deployment %s is ready", deployment.Name)
+		frontendPage.Status.Message = fmt.Sprintf("Deployment %s is ready", deployment.Name)
+	} else {
+		frontendPage.Status.Message = fmt.Sprintf("Deployment %s is not ready yet", deployment.Name)
 	}
-
-	condition.LastTransitionTime = metav1.Now()
-	frontendPage.Status.Conditions = []metav1.Condition{condition}
 
 	if err := r.Status().Update(ctx, &frontendPage); err != nil {
 		return ctrl.Result{}, err
@@ -262,22 +252,9 @@ func (r *FrontendPageReconciler) createOrUpdateService(ctx context.Context, fron
 func (r *FrontendPageReconciler) updateStatus(ctx context.Context, frontendPage *k8scliv1.FrontendPage, phase string, ready bool, message string) {
 	frontendPage.Status.Phase = phase
 	frontendPage.Status.Ready = ready
-	frontendPage.Status.LastUpdated = metav1.Now()
-
-	condition := metav1.Condition{
-		Type:               "Ready",
-		Status:             metav1.ConditionFalse,
-		Reason:             "Error",
-		Message:            message,
-		LastTransitionTime: metav1.Now(),
-	}
-
-	if ready {
-		condition.Status = metav1.ConditionTrue
-		condition.Reason = "Success"
-	}
-
-	frontendPage.Status.Conditions = []metav1.Condition{condition}
+	frontendPage.Status.LastUpdated = time.Now().Format(time.RFC3339)
+	frontendPage.Status.Message = message
+	frontendPage.Status.ObservedGeneration = frontendPage.Generation
 	r.Status().Update(ctx, frontendPage)
 }
 
