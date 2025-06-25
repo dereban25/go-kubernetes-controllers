@@ -1,4 +1,3 @@
-// k8s-cli/cmd/crd.go
 package cmd
 
 import (

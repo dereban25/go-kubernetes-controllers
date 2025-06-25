@@ -13,6 +13,7 @@ import (
 	appsv1 "k8s.io/api/apps/v1"
 	"k8s.io/apimachinery/pkg/runtime"
 	ctrl "sigs.k8s.io/controller-runtime"
+	"sigs.k8s.io/controller-runtime/pkg/cache"
 	"sigs.k8s.io/controller-runtime/pkg/healthz"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
@@ -66,8 +67,10 @@ func NewControllerManager(config *ManagerConfig) (*ControllerManager, error) {
 
 	// Set namespace if specified
 	if config.Namespace != "" {
-		options.Cache.DefaultNamespaces = map[string]cache.Config{
-			config.Namespace: {},
+		options.Cache = cache.Options{
+			DefaultNamespaces: map[string]cache.Config{
+				config.Namespace: {},
+			},
 		}
 	}
 
@@ -123,13 +126,6 @@ func (cm *ControllerManager) Start(ctx context.Context) error {
 	} else {
 		log.Println("⚠️ Step 10: Leader election is disabled")
 		log.Println("   📋 Manager will start immediately without election")
-	}
-
-	// Add leader election callbacks if enabled
-	if cm.config.LeaderElection {
-		cm.manager.GetLeaderElectionRunnableFunc()(func(ctx context.Context) {
-			log.Println("🏆 Step 10: Became leader! Starting controllers...")
-		})
 	}
 
 	return cm.manager.Start(ctx)

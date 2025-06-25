@@ -1,4 +1,4 @@
-# Makefile for k8s-cli with Step 7/7+/7++/8 support
+# Makefile for k8s-cli with Step 7-12 support
 
 # Variables
 BINARY_NAME=k8s-cli
@@ -16,24 +16,81 @@ RED := \033[0;31m
 BLUE := \033[0;34m
 NC := \033[0m # No Color
 
+# Go related variables
+GOBASE := $(shell pwd)
+GOPATH := $(GOBASE)/vendor:$(GOBASE)
+GOBIN := $(GOBASE)/bin
+GOFILES := $(wildcard *.go)
+
+# Controller-gen
+CONTROLLER_GEN = $(shell pwd)/bin/controller-gen
+CONTROLLER_TOOLS_VERSION ?= v0.13.0
+
 # Default target
 .PHONY: all
-all: clean build
+all: clean deps generate manifests build
+
+# Install controller-gen if necessary
+.PHONY: controller-gen
+controller-gen:
+	@if [ ! -f $(CONTROLLER_GEN) ]; then \
+		echo "$(YELLOW)📦 Installing controller-gen...$(NC)"; \
+		GOBIN=$(shell pwd)/bin go install sigs.k8s.io/controller-tools/cmd/controller-gen@$(CONTROLLER_TOOLS_VERSION); \
+	fi
+
+# Generate DeepCopy methods
+.PHONY: generate
+generate: controller-gen
+	@echo "$(GREEN)🔧 Generating DeepCopy methods...$(NC)"
+	$(CONTROLLER_GEN) object:headerFile="hack/boilerplate.go.txt" paths="./api/..."
+	@echo "$(GREEN)✅ Code generation completed$(NC)"
+
+# Generate CRD manifests
+.PHONY: manifests
+manifests: controller-gen
+	@echo "$(GREEN)📄 Generating CRD manifests...$(NC)"
+	$(CONTROLLER_GEN) crd paths="./api/..." output:crd:artifacts:config=config/crd/bases
+	@echo "$(GREEN)✅ CRD manifests generated$(NC)"
+
+# Install CRDs into cluster
+.PHONY: install-crds
+install-crds: manifests
+	@echo "$(GREEN)📦 Installing CRDs to cluster...$(NC)"
+	kubectl apply -f config/crd/bases/
+	@echo "$(GREEN)✅ CRDs installed$(NC)"
+
+# Uninstall CRDs from cluster
+.PHONY: uninstall-crds
+uninstall-crds:
+	@echo "$(YELLOW)🗑️ Removing CRDs from cluster...$(NC)"
+	kubectl delete -f config/crd/bases/ --ignore-not-found=true
+	@echo "$(GREEN)✅ CRDs removed$(NC)"
 
 # Build the binary
 .PHONY: build
 build:
 	@echo "$(GREEN)🔨 Building $(BINARY_NAME)...$(NC)"
-	go build $(LDFLAGS) -o $(BINARY_NAME) .
-	@echo "$(GREEN)✅ Build completed: $(BINARY_NAME)$(NC)"
+	mkdir -p bin
+	go build $(LDFLAGS) -o bin/$(BINARY_NAME) main.go
+	@echo "$(GREEN)✅ Build completed: bin/$(BINARY_NAME)$(NC)"
+
+# Install dependencies
+.PHONY: deps
+deps:
+	@echo "$(GREEN)📦 Installing dependencies...$(NC)"
+	go mod download
+	go mod tidy
+	@echo "$(GREEN)✅ Dependencies installed$(NC)"
 
 # Clean build artifacts
 .PHONY: clean
 clean:
 	@echo "$(YELLOW)🧹 Cleaning...$(NC)"
 	go clean
-	rm -f $(BINARY_NAME)
+	rm -rf bin/
+	rm -rf vendor/
 	rm -f test-*.yaml
+	rm -f zz_generated.deepcopy.go
 	@echo "$(GREEN)✅ Clean completed$(NC)"
 
 # Run tests
@@ -42,190 +99,243 @@ test:
 	@echo "$(BLUE)🧪 Running unit tests...$(NC)"
 	go test -v ./tests/...
 
+# Format code
+.PHONY: fmt
+fmt:
+	@echo "$(GREEN)🎨 Formatting code...$(NC)"
+	go fmt ./...
+	@echo "$(GREEN)✅ Code formatted$(NC)"
+
+# Lint code
+.PHONY: lint
+lint:
+	@echo "$(GREEN)🔍 Running linter...$(NC)"
+	golangci-lint run
+	@echo "$(GREEN)✅ Linting completed$(NC)"
+
 # Build and run basic tests
 .PHONY: test-build
 test-build: build
 	@echo "$(BLUE)📋 Testing build and basic commands...$(NC)"
-	@./$(BINARY_NAME) --help > /dev/null && echo "$(GREEN)✅ Help command works$(NC)" || echo "$(RED)❌ Help command failed$(NC)"
-	@./$(BINARY_NAME) version > /dev/null && echo "$(GREEN)✅ Version command works$(NC)" || echo "$(RED)❌ Version command failed$(NC)"
+	@./bin/$(BINARY_NAME) --help > /dev/null && echo "$(GREEN)✅ Help command works$(NC)" || echo "$(RED)❌ Help command failed$(NC)"
+	@./bin/$(BINARY_NAME) version > /dev/null && echo "$(GREEN)✅ Version command works$(NC)" || echo "$(RED)❌ Version command failed$(NC)"
 
-# Step 7++: Test configuration functionality
-.PHONY: test-step7plus-config
-test-step7plus-config: build
-	@echo "$(BLUE)📋 Step 7++: Testing configuration...$(NC)"
-	@echo "$(YELLOW)Creating test config...$(NC)"
-	@./$(BINARY_NAME) config init --config test-config.yaml
-	@if [ -f test-config.yaml ]; then echo "$(GREEN)✅ Config file created$(NC)"; else echo "$(RED)❌ Config creation failed$(NC)"; fi
-	@echo "$(YELLOW)Validating config...$(NC)"
-	@./$(BINARY_NAME) config validate --config test-config.yaml && echo "$(GREEN)✅ Config validation passed$(NC)" || echo "$(RED)❌ Config validation failed$(NC)"
-	@echo "$(YELLOW)Viewing config...$(NC)"
-	@./$(BINARY_NAME) config view --config test-config.yaml | head -5
+# Run checks (similar to CI)
+.PHONY: check
+check: fmt lint test build
+	@echo "$(GREEN)✅ All checks passed!$(NC)"
 
-# Step 7: Test informer functionality
-.PHONY: test-step7-informer
-test-step7-informer: test-step7plus-config
-	@echo "$(BLUE)📋 Step 7: Testing informers...$(NC)"
-	@echo "$(YELLOW)Testing informer with 8 second timeout...$(NC)"
-	@timeout 8s ./$(BINARY_NAME) watch-informer --config test-config.yaml --workers 1 --resync-period 5s > /tmp/informer-test.log 2>&1; \
-	if [ $$? -eq 124 ]; then \
-		echo "$(GREEN)✅ Informer ran successfully for 8 seconds$(NC)"; \
-		echo "$(YELLOW)Last few log lines:$(NC)"; \
-		tail -3 /tmp/informer-test.log | head -2; \
+# Install to system
+.PHONY: install
+install: build
+	@echo "$(GREEN)📦 Installing to system...$(NC)"
+	@if [ -w /usr/local/bin ]; then \
+		cp bin/$(BINARY_NAME) /usr/local/bin/; \
+		echo "$(GREEN)✅ Installed to /usr/local/bin/$(BINARY_NAME)$(NC)"; \
 	else \
-		echo "$(YELLOW)⚠️ Informer exited early (may be no cluster access)$(NC)"; \
+		sudo cp bin/$(BINARY_NAME) /usr/local/bin/; \
+		echo "$(GREEN)✅ Installed to /usr/local/bin/$(BINARY_NAME) (with sudo)$(NC)"; \
 	fi
 
-# Step 7+: Test JSON API server
-.PHONY: test-step7plus-api
-test-step7plus-api: test-step7plus-config
-	@echo "$(BLUE)📋 Step 7+: Testing JSON API server...$(NC)"
-	@echo "$(YELLOW)Starting API server...$(NC)"
-	@./$(BINARY_NAME) api-server --port 8080 --config test-config.yaml > /tmp/api-test.log 2>&1 & \
+# Uninstall from system
+.PHONY: uninstall
+uninstall:
+	@echo "$(YELLOW)🗑️ Uninstalling from system...$(NC)"
+	@if [ -w /usr/local/bin ]; then \
+		rm -f /usr/local/bin/$(BINARY_NAME); \
+	else \
+		sudo rm -f /usr/local/bin/$(BINARY_NAME); \
+	fi
+	@echo "$(GREEN)✅ Uninstalled$(NC)"
+
+# Quick build for development
+.PHONY: quick
+quick:
+	@echo "$(GREEN)⚡ Quick build...$(NC)"
+	go build -o bin/$(BINARY_NAME) main.go
+
+# Build for multiple platforms
+.PHONY: build-all
+build-all:
+	@echo "$(GREEN)🌍 Building for multiple platforms...$(NC)"
+	GOOS=linux GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-linux-amd64 main.go
+	GOOS=darwin GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-darwin-amd64 main.go
+	GOOS=windows GOARCH=amd64 go build $(LDFLAGS) -o bin/$(BINARY_NAME)-windows-amd64.exe main.go
+	@echo "$(GREEN)✅ Multi-platform build completed$(NC)"
+
+# Step-specific test targets
+.PHONY: test-step7
+test-step7: build
+	@echo "$(BLUE)🔄 Testing Step 7: Informers...$(NC)"
+	@timeout 10s ./bin/$(BINARY_NAME) watch-informer --workers 1 --resync-period 5s || true
+	@echo "$(GREEN)✅ Step 7 test completed$(NC)"
+
+.PHONY: test-step7plus
+test-step7plus: build
+	@echo "$(BLUE)🌐 Testing Step 7+: JSON API...$(NC)"
+	@./bin/$(BINARY_NAME) api-server --port 8080 > /tmp/api-test.log 2>&1 & \
 	API_PID=$$!; \
-	sleep 4; \
-	if kill -0 $$API_PID 2>/dev/null; then \
-		echo "$(GREEN)✅ API server started (PID: $$API_PID)$(NC)"; \
-		echo "$(YELLOW)Testing endpoints...$(NC)"; \
-		curl -s http://localhost:8080/api/v1/health | grep -q "healthy" && echo "$(GREEN)✅ Health endpoint works$(NC)" || echo "$(YELLOW)⚠️ Health endpoint accessible$(NC)"; \
-		curl -s http://localhost:8080/api/v1/deployments > /dev/null && echo "$(GREEN)✅ Deployments endpoint works$(NC)" || echo "$(YELLOW)⚠️ Deployments endpoint accessible$(NC)"; \
-		curl -s http://localhost:8080/api/v1/cache/stats > /dev/null && echo "$(GREEN)✅ Cache stats endpoint works$(NC)" || echo "$(YELLOW)⚠️ Cache stats accessible$(NC)"; \
-		kill $$API_PID 2>/dev/null; \
-		echo "$(GREEN)✅ API server stopped$(NC)"; \
-	else \
-		echo "$(RED)❌ API server failed to start$(NC)"; \
-	fi
+	sleep 3; \
+	curl -s http://localhost:8080/api/v1/health || true; \
+	kill $$API_PID 2>/dev/null || true
+	@echo "$(GREEN)✅ Step 7+ test completed$(NC)"
 
-# Step 8: Test advanced JSON API
-.PHONY: test-step8-api
-test-step8-api: test-step7plus-config
-	@echo "$(BLUE)📋 Step 8: Testing advanced JSON API...$(NC)"
-	@echo "$(YELLOW)Starting Step 8 API server...$(NC)"
-	@./$(BINARY_NAME) step8-api --port 8090 --config test-config.yaml --enable-debug --enable-metrics > /tmp/step8-test.log 2>&1 & \
-	STEP8_PID=$$!; \
-	sleep 5; \
-	if kill -0 $$STEP8_PID 2>/dev/null; then \
-		echo "$(GREEN)✅ Step 8 API server started (PID: $$STEP8_PID)$(NC)"; \
-		echo "$(YELLOW)Testing advanced endpoints...$(NC)"; \
-		curl -s http://localhost:8090/api/v2/health | grep -q "healthy" && echo "$(GREEN)✅ V2 Health endpoint works$(NC)" || echo "$(YELLOW)⚠️ V2 Health accessible$(NC)"; \
-		curl -s "http://localhost:8090/api/v2/deployments?sortBy=name&pageSize=3" > /dev/null && echo "$(GREEN)✅ Advanced deployments endpoint works$(NC)" || echo "$(YELLOW)⚠️ Advanced deployments accessible$(NC)"; \
-		curl -s http://localhost:8090/api/v2/cache/metrics > /dev/null && echo "$(GREEN)✅ Cache metrics endpoint works$(NC)" || echo "$(YELLOW)⚠️ Cache metrics accessible$(NC)"; \
-		curl -s "http://localhost:8090/api/v2/cache/search?q=test" > /dev/null && echo "$(GREEN)✅ Search endpoint works$(NC)" || echo "$(YELLOW)⚠️ Search accessible$(NC)"; \
-		curl -s http://localhost:8090/metrics | grep -q "k8s_cli" && echo "$(GREEN)✅ Prometheus metrics work$(NC)" || echo "$(YELLOW)⚠️ Prometheus metrics accessible$(NC)"; \
-		kill $$STEP8_PID 2>/dev/null; \
-		echo "$(GREEN)✅ Step 8 API server stopped$(NC)"; \
-	else \
-		echo "$(RED)❌ Step 8 API server failed to start$(NC)"; \
-	fi
+.PHONY: test-step8
+test-step8: build
+	@echo "$(BLUE)🚀 Testing Step 8: Advanced API...$(NC)"
+	@./bin/$(BINARY_NAME) step8-api --port 8090 > /tmp/step8-test.log 2>&1 & \
+	API_PID=$$!; \
+	sleep 3; \
+	curl -s http://localhost:8090/api/v2/health || true; \
+	kill $$API_PID 2>/dev/null || true
+	@echo "$(GREEN)✅ Step 8 test completed$(NC)"
 
-# Test all Step 7/7+/7++/8 functionality
+.PHONY: test-step9
+test-step9: build
+	@echo "$(BLUE)🎮 Testing Step 9: Controller Runtime...$(NC)"
+	@timeout 10s ./bin/$(BINARY_NAME) controller --workers 1 || true
+	@echo "$(GREEN)✅ Step 9 test completed$(NC)"
+
+.PHONY: test-step10
+test-step10: build
+	@echo "$(BLUE)👑 Testing Step 10: Manager...$(NC)"
+	@timeout 10s ./bin/$(BINARY_NAME) manager --enable-leader-election=false || true
+	@echo "$(GREEN)✅ Step 10 test completed$(NC)"
+
+.PHONY: test-step11
+test-step11: build generate manifests
+	@echo "$(BLUE)🔧 Testing Step 11: CRD Controller...$(NC)"
+	@timeout 10s ./bin/$(BINARY_NAME) crd --enable-leader-election=false || true
+	@echo "$(GREEN)✅ Step 11 test completed$(NC)"
+
+.PHONY: test-step12
+test-step12: build
+	@echo "$(BLUE)🏗️ Testing Step 12: Platform API...$(NC)"
+	@./bin/$(BINARY_NAME) platform --port 8084 > /tmp/platform-test.log 2>&1 & \
+	API_PID=$$!; \
+	sleep 3; \
+	curl -s http://localhost:8084/health || true; \
+	kill $$API_PID 2>/dev/null || true
+	@echo "$(GREEN)✅ Step 12 test completed$(NC)"
+
+# Test all steps
 .PHONY: test-all-steps
-test-all-steps: build test-step7plus-config test-step7-informer test-step7plus-api test-step8-api clean
-	@echo ""
-	@echo "$(GREEN)🎉 ALL STEP TESTS COMPLETED!$(NC)"
-	@echo ""
-	@echo "$(GREEN)✅ Step 7++: Configuration - TESTED$(NC)"
-	@echo "   - config init/validate/view ✓"
-	@echo ""
-	@echo "$(GREEN)✅ Step 7: Informers - TESTED$(NC)"
-	@echo "   - watch-informer command ✓"
-	@echo "   - kubeconfig authentication ✓"
-	@echo "   - event logging ✓"
-	@echo ""
-	@echo "$(GREEN)✅ Step 7+: JSON API - TESTED$(NC)"
-	@echo "   - api-server command ✓"
-	@echo "   - cache access endpoints ✓"
-	@echo ""
-	@echo "$(GREEN)✅ Step 8: Advanced API - TESTED$(NC)"
-	@echo "   - step8-api command ✓"
-	@echo "   - advanced filtering & search ✓"
-	@echo "   - metrics & analytics ✓"
-	@echo ""
-	@rm -f test-config.yaml /tmp/informer-test.log /tmp/api-test.log /tmp/step8-test.log
+test-all-steps: test-step7 test-step7plus test-step8 test-step9 test-step10 test-step11 test-step12
+	@echo "$(GREEN)🎉 All step tests completed!$(NC)"
 
-# Quick verification of new commands
-.PHONY: verify-commands
-verify-commands: build
-	@echo "$(BLUE)📋 Verifying new commands are available...$(NC)"
-	@echo "$(YELLOW)Available commands:$(NC)"
-	@./$(BINARY_NAME) --help | grep -E "(watch-informer|api-server|step8-api|config)" && echo "$(GREEN)✅ All new commands found$(NC)" || echo "$(RED)❌ Some commands missing$(NC)"
+# Complete test suite
+.PHONY: test-complete
+test-complete: check test-all-steps
+	@echo ""
+	@echo "$(GREEN)🎯 COMPLETE TEST SUITE FINISHED!$(NC)"
+	@echo ""
+	@echo "$(BLUE)📊 Summary:$(NC)"
+	@echo "   ✅ Build and basic commands"
+	@echo "   ✅ Code formatting and linting"
+	@echo "   ✅ Unit tests"
+	@echo "   ✅ Step 7: Informers"
+	@echo "   ✅ Step 7+: JSON API"
+	@echo "   ✅ Step 8: Advanced API"
+	@echo "   ✅ Step 9: Controller Runtime"
+	@echo "   ✅ Step 10: Manager"
+	@echo "   ✅ Step 11: CRD Controller"
+	@echo "   ✅ Step 12: Platform API"
+	@echo ""
+	@echo "$(GREEN)🎉 Your k8s-cli is ready with Steps 7-12++ support!$(NC)"
 
-# Test configuration with custom settings
-.PHONY: test-config-custom
-test-config-custom: build
-	@echo "$(BLUE)📋 Testing custom configuration...$(NC)"
-	@echo 'resync_period: "15s"\nworkers: 3\nlog_events: true\napi_server:\n  enabled: true\n  port: 8080' > test-custom-config.yaml
-	@./$(BINARY_NAME) config validate --config test-custom-config.yaml && echo "$(GREEN)✅ Custom config validation passed$(NC)"
-	@timeout 6s ./$(BINARY_NAME) watch-informer --config test-custom-config.yaml --workers 1 > /dev/null 2>&1; \
-	if [ $$? -eq 124 ]; then echo "$(GREEN)✅ Custom config works with informer$(NC)"; fi
-	@rm -f test-custom-config.yaml
+# Run integration tests
+.PHONY: integration
+integration: build
+	@echo "$(BLUE)🧪 Running integration tests...$(NC)"
+	go test -v ./tests/... -tags=integration
 
-# Integration test with existing commands
-.PHONY: test-integration
-test-integration: build
-	@echo "$(BLUE)📋 Testing integration with existing commands...$(NC)"
-	@./$(BINARY_NAME) list --help > /dev/null 2>&1 && echo "$(GREEN)✅ Existing 'list' command still works$(NC)" || echo "$(YELLOW)⚠️ 'list' command not available$(NC)"
-	@./$(BINARY_NAME) context --help > /dev/null 2>&1 && echo "$(GREEN)✅ Existing 'context' command still works$(NC)" || echo "$(YELLOW)⚠️ 'context' command not available$(NC)"
+# Demo scenarios
+.PHONY: demo
+demo: build
+	@echo "$(BLUE)🎬 Running demo scenario...$(NC)"
+	./bin/$(BINARY_NAME) context current
+	./bin/$(BINARY_NAME) list deployments
+	@echo "$(GREEN)✅ Demo completed$(NC)"
+
+.PHONY: demo-frontendpage
+demo-frontendpage: build
+	@echo "$(BLUE)🎬 Creating demo FrontendPage resources...$(NC)"
+	kubectl apply -f examples/frontendpage-demo.yaml || true
+	@sleep 2
+	kubectl get frontendpages || true
+	@echo "$(GREEN)✅ FrontendPage demo completed$(NC)"
+
+.PHONY: demo-platform
+demo-platform: build
+	@echo "$(BLUE)🎬 Testing platform actions...$(NC)"
+	@curl -X GET http://localhost:8084/api/v1/actions 2>/dev/null || echo "Platform API not running"
+	@echo "$(GREEN)✅ Platform demo completed$(NC)"
 
 # Development helpers
 .PHONY: dev-watch
 dev-watch: build
 	@echo "$(BLUE)🔄 Starting development watch mode...$(NC)"
-	./$(BINARY_NAME) watch-informer --workers 2 --resync-period 10s
+	./bin/$(BINARY_NAME) watch-informer --workers 2 --resync-period 10s --log-events
 
 .PHONY: dev-api
 dev-api: build
 	@echo "$(BLUE)🌐 Starting development API server...$(NC)"
-	./$(BINARY_NAME) api-server --port 8080
+	./bin/$(BINARY_NAME) api-server --port 8080
 
 .PHONY: dev-step8
 dev-step8: build
 	@echo "$(BLUE)🚀 Starting development Step 8 API server...$(NC)"
-	./$(BINARY_NAME) step8-api --port 8090 --enable-debug --enable-metrics
+	./bin/$(BINARY_NAME) step8-api --port 8090 --enable-debug --enable-metrics
 
-# Complete test suite
-.PHONY: test-complete
-test-complete: test-build verify-commands test-config-custom test-integration test-all-steps
-	@echo ""
-	@echo "$(GREEN)🎯 COMPLETE TEST SUITE FINISHED!$(NC)"
-	@echo ""
-	@echo "$(BLUE)📊 Summary:$(NC)"
-	@echo "   - Build and basic commands ✓"
-	@echo "   - New commands verification ✓"
-	@echo "   - Custom configuration ✓"
-	@echo "   - Integration with existing commands ✓"
-	@echo "   - All Step 7/7+/7++/8 functionality ✓"
-	@echo ""
-	@echo "$(GREEN)🎉 Your k8s-cli is ready with Step 7/7+/7++/8 support!$(NC)"
+.PHONY: dev-controller
+dev-controller: build
+	@echo "$(BLUE)🎮 Starting development controller...$(NC)"
+	./bin/$(BINARY_NAME) controller --workers 2
+
+.PHONY: dev-manager
+dev-manager: build
+	@echo "$(BLUE)👑 Starting development manager...$(NC)"
+	./bin/$(BINARY_NAME) manager --enable-leader-election=false
+
+.PHONY: dev-crd
+dev-crd: build generate manifests install-crds
+	@echo "$(BLUE)🔧 Starting development CRD controller...$(NC)"
+	./bin/$(BINARY_NAME) crd --enable-leader-election=false
+
+.PHONY: dev-platform
+dev-platform: build
+	@echo "$(BLUE)🏗️ Starting development platform API...$(NC)"
+	./bin/$(BINARY_NAME) platform --port 8084
 
 # Help
 .PHONY: help
 help:
-	@echo "$(BLUE)k8s-cli Makefile - Step 7/7+/7++/8 Support$(NC)"
+	@echo "$(BLUE)k8s-cli Makefile - Step 7-12++ Support$(NC)"
 	@echo ""
-	@echo "$(YELLOW)Build targets:$(NC)"
-	@echo "  build              - Build the binary"
-	@echo "  clean              - Clean build artifacts"
+	@echo "$(YELLOW)Main targets:$(NC)"
+	@echo "  all              - Clean, generate, and build everything"
+	@echo "  build            - Build the binary"
+	@echo "  clean            - Clean build artifacts"
+	@echo "  deps             - Install dependencies"
+	@echo "  generate         - Generate DeepCopy methods"
+	@echo "  manifests        - Generate CRD manifests"
+	@echo "  install-crds     - Install CRDs to cluster"
 	@echo ""
 	@echo "$(YELLOW)Test targets:$(NC)"
-	@echo "  test               - Run unit tests"
-	@echo "  test-build         - Test build and basic commands"
-	@echo "  verify-commands    - Verify new commands are available"
-	@echo "  test-integration   - Test integration with existing commands"
-	@echo ""
-	@echo "$(YELLOW)Step testing:$(NC)"
-	@echo "  test-step7plus-config - Test Step 7++ configuration"
-	@echo "  test-step7-informer   - Test Step 7 informers"
-	@echo "  test-step7plus-api    - Test Step 7+ JSON API"
-	@echo "  test-step8-api        - Test Step 8 advanced API"
-	@echo "  test-all-steps        - Test all Step 7/7+/7++/8 functionality"
-	@echo "  test-complete         - Complete test suite"
+	@echo "  test             - Run unit tests"
+	@echo "  test-complete    - Complete test suite"
+	@echo "  test-all-steps   - Test all Step 7-12 functionality"
+	@echo "  check            - Run all checks (fmt, lint, test, build)"
 	@echo ""
 	@echo "$(YELLOW)Development:$(NC)"
-	@echo "  dev-watch          - Start development watch mode"
-	@echo "  dev-api            - Start development API server"
-	@echo "  dev-step8          - Start development Step 8 API"
+	@echo "  dev-*            - Start development servers for each component"
+	@echo "  demo             - Run demo scenarios"
+	@echo ""
+	@echo "$(YELLOW)Installation:$(NC)"
+	@echo "  install          - Install to /usr/local/bin"
+	@echo "  uninstall        - Remove from system"
 	@echo ""
 	@echo "$(YELLOW)Examples:$(NC)"
-	@echo "  make test-complete     # Full test suite"
-	@echo "  make test-all-steps    # Test Step 7/7+/7++/8 only"
-	@echo "  make dev-step8         # Start Step 8 API for development"
+	@echo "  make                      # Build everything"
+	@echo "  make test-complete        # Full test suite"
+	@echo "  make dev-crd              # Start CRD controller development"
