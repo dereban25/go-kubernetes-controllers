@@ -3,8 +3,8 @@ package cmd
 import (
 	"context"
 	"fmt"
-	"io/ioutil"
 	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/internal/k8s"
+	"io/ioutil"
 	"strings"
 
 	"github.com/spf13/cobra"
