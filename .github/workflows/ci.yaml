@@ -103,6 +103,15 @@ jobs:
           echo "Using KUBECONFIG at: env.KUBECONFIG"
           kubectl cluster-info
           go test ./tests/... -v
+      - name: Run Make test-complete
+        shell: bash
+        env:
+          KUBECONFIG: ${{ steps.kind.outputs.kubeconfig }}
+        run: |
+          echo "Using KUBECONFIG at: $KUBECONFIG"
+          echo "Using KUBECONFIG at: env.KUBECONFIG"
+          kubectl cluster-info
+          make test-complete
 
   # ────────────────────────────
   # 3. Cross-platform build

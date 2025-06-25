@@ -1,0 +1,50 @@
+# k8s-cli Configuration File (Step 7++)
+# This file configures the informer settings, API server, and custom logic
+
+# Step 7: Informer settings
+resync_period: "30s"  # How often to resync the cache
+workers: 2            # Number of worker goroutines for processing events
+
+# Namespaces to watch (empty means all namespaces)
+namespaces:
+  - "default"
+  - "kube-system"
+
+# Enable event logging
+log_events: true
+
+# Step 7+: JSON API Server configuration
+api_server:
+  enabled: true        # Enable JSON API server
+  port: 8080          # API server port
+
+# Step 7+: Custom logic configuration
+custom_logic:
+  # Enable custom handling for update events
+  enable_update_handling: true
+  
+  # Enable custom handling for delete events  
+  enable_delete_handling: true
+  
+  # Filter deployments by labels (optional)
+  filter_labels:
+    - "app"
+    - "environment"
+
+# Step 7++: Kubernetes client settings
+kubernetes:
+  # Timeout for API calls
+  timeout: "30s"
+  
+  # QPS and burst settings for rate limiting
+  qps: 50
+  burst: 100
+
+# Step 7++: Logging configuration
+logging:
+  level: "info"  # debug, info, warn, error
+  format: "text" # text, json
+
+# Example usage:
+# k8s-cli watch-informer --config ~/.k8s-cli/config.yaml
+# k8s-cli api-server --config ~/.k8s-cli/config.yaml
