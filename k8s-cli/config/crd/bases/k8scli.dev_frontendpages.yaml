@@ -1,0 +1,392 @@
+# config/crd/bases/k8scli.dev_frontendpages.yaml
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  annotations:
+    controller-gen.kubebuilder.io/version: v0.13.0
+  name: frontendpages.k8scli.dev
+spec:
+  group: k8scli.dev
+  names:
+    kind: FrontendPage
+    listKind: FrontendPageList
+    plural: frontendpages
+    singular: frontendpage
+  scope: Namespaced
+  versions:
+    - additionalPrinterColumns:
+        - jsonPath: .spec.title
+          name: Title
+          type: string
+        - jsonPath: .spec.path
+          name: Path
+          type: string
+        - jsonPath: .status.phase
+          name: Phase
+          type: string
+        - jsonPath: .status.ready
+          name: Ready
+          type: boolean
+        - jsonPath: .metadata.creationTimestamp
+          name: Age
+          type: date
+      name: v1
+      schema:
+        openAPIV3Schema:
+          description: FrontendPage is the Schema for the frontendpages API
+          properties:
+            apiVersion:
+              description: 'APIVersion defines the versioned schema of this representation
+              of an object. Servers should convert recognized schemas to the latest
+              internal value, and may reject unrecognized values. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#resources'
+              type: string
+            kind:
+              description: 'Kind is a string value representing the REST resource this
+              object represents. Servers may infer this from the endpoint the client
+              submits requests to. Cannot be updated. In CamelCase. More info: https://git.k8s.io/community/contributors/devel/sig-architecture/api-conventions.md#types-kinds'
+              type: string
+            metadata:
+              type: object
+            spec:
+              description: FrontendPageSpec defines the desired state of FrontendPage
+              properties:
+                config:
+                  additionalProperties:
+                    type: string
+                  description: Configuration for the frontend page
+                  type: object
+                description:
+                  description: Description of the frontend page
+                  type: string
+                image:
+                  description: Image for the frontend container
+                  type: string
+                path:
+                  description: URL path for the frontend page
+                  type: string
+                replicas:
+                  description: Replicas for the frontend deployment
+                  format: int32
+                  type: integer
+                template:
+                  description: Template to use for rendering
+                  type: string
+                title:
+                  description: Title of the frontend page
+                  type: string
+              required:
+                - description
+                - path
+                - title
+              type: object
+            status:
+              description: FrontendPageStatus defines the observed state of FrontendPage
+              properties:
+                conditions:
+                  description: Conditions represent the latest available observations
+                  items:
+                    description: "Condition contains details for one aspect of the current
+                    state of this API Resource. --- This struct is intended for direct
+                    use as an array at the field path .status.conditions.  For example,
+                    \n type FooStatus struct{ // Represents the observations of a
+                    foo's current state. // Known .status.conditions.type are: \"Available\",
+                    \"Progressing\", and \"Degraded\" // +patchMergeKey=type // +patchStrategy=merge
+                    // +listType=map // +listMapKey=type Conditions []metav1.Condition
+                    `json:\"conditions,omitempty\" patchStrategy:\"merge\" patchMergeKey:\"type\"
+                    protobuf:\"bytes,1,rep,name=conditions\"` \n // other fields }"
+                    properties:
+                      lastTransitionTime:
+                        description: lastTransitionTime is the last time the condition
+                          transitioned from one status to another. This should be when
+                          the underlying condition changed.  If that is not known, then
+                          using the time when the API field changed is acceptable.
+                        format: date-time
+                        type: string
+                      message:
+                        description: message is a human readable message indicating
+                          details about the transition. This may be an empty string.
+                        maxLength: 32768
+                        type: string
+                      observedGeneration:
+                        description: observedGeneration represents the .metadata.generation
+                          that the condition was set based upon. For instance, if .metadata.generation
+                          is currently 12, but the .status.conditions[x].observedGeneration
+                          is 9, the condition is out of date with respect to the current
+                          state of the instance.
+                        format: int64
+                        minimum: 0
+                        type: integer
+                      reason:
+                        description: reason contains a programmatic identifier indicating
+                          the reason for the condition's last transition. Producers
+                          of specific condition types may define expected values and
+                          meanings for this field, and whether the values are considered
+                          a guaranteed API. The value should be a CamelCase string.
+                          This field may not be empty.
+                        maxLength: 1024
+                        minLength: 1
+                        pattern: ^[A-Za-z]([A-Za-z0-9_,:]*[A-Za-z0-9_])?$
+                        type: string
+                      status:
+                        description: status of the condition, one of True, False, Unknown.
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                        type: string
+                      type:
+                        description: type of condition in CamelCase or in foo.example.com/CamelCase.
+                          --- Many .condition.type values are consistent across resources
+                          like Available, but because arbitrary conditions can be useful
+                          (see .node.status.conditions), the ability to deconflict is
+                          important. The regex it matches is (dns1123SubdomainFmt/)?(qualifiedNameFmt)
+                        maxLength: 316
+                        pattern: ^([a-z0-9]([-a-z0-9]*[a-z0-9])?(\.[a-z0-9]([-a-z0-9]*[a-z0-9])?)*/)?(([A-Za-z0-9][-A-Za-z0-9_.]*)?[A-Za-z0-9])$
+                        type: string
+                    required:
+                      - lastTransitionTime
+                      - message
+                      - reason
+                      - status
+                      - type
+                    type: object
+                  type: array
+                deploymentName:
+                  description: DeploymentName is the name of the created deployment
+                  type: string
+                lastUpdated:
+                  description: LastUpdated timestamp
+                  format: date-time
+                  type: string
+                phase:
+                  description: Phase represents the current phase of the FrontendPage
+                  type: string
+                ready:
+                  description: Ready indicates if the frontend page is ready
+                  type: boolean
+                serviceName:
+                  description: ServiceName is the name of the created service
+                  type: string
+                url:
+                  description: URL where the frontend page is accessible
+                  type: string
+              type: object
+          type: object
+      served: true
+      storage: true
+      subresources:
+        status: {}
+
+---
+# config/samples/k8scli_v1_frontendpage.yaml
+apiVersion: k8scli.dev/v1
+kind: FrontendPage
+metadata:
+  labels:
+    app.kubernetes.io/name: frontendpage
+    app.kubernetes.io/instance: frontendpage-sample
+    app.kubernetes.io/part-of: k8s-cli
+    app.kubernetes.io/managed-by: kustomize
+    app.kubernetes.io/created-by: k8s-cli
+  name: frontendpage-sample
+spec:
+  title: "Sample Frontend Page"
+  description: "This is a sample frontend page created by k8s-cli"
+  path: "/sample"
+  template: "default"
+  replicas: 2
+  image: "nginx:1.20"
+  config:
+    ENVIRONMENT: "development"
+    DEBUG: "true"
+    API_URL: "https://api.example.com"
+
+---
+# examples/frontendpage-demo.yaml
+apiVersion: k8scli.dev/v1
+kind: FrontendPage
+metadata:
+  name: demo-frontend
+  namespace: default
+  labels:
+    app: demo-frontend
+    tier: frontend
+spec:
+  title: "Demo Frontend Application"
+  description: "A demonstration of FrontendPage custom resource"
+  path: "/demo"
+  template: "modern"
+  replicas: 3
+  image: "nginx:1.21"
+  config:
+    ENVIRONMENT: "demo"
+    TITLE: "Demo Frontend"
+    DESCRIPTION: "Built with k8s-cli Step 11"
+    DEBUG: "false"
+    THEME: "dark"
+    API_ENDPOINT: "https://api.demo.com"
+
+---
+# examples/frontendpage-production.yaml
+apiVersion: k8scli.dev/v1
+kind: FrontendPage
+metadata:
+  name: production-frontend
+  namespace: production
+  labels:
+    app: production-frontend
+    tier: frontend
+    environment: production
+spec:
+  title: "Production Frontend"
+  description: "Production frontend application with high availability"
+  path: "/app"
+  template: "enterprise"
+  replicas: 5
+  image: "nginx:1.21-alpine"
+  config:
+    ENVIRONMENT: "production"
+    TITLE: "Production App"
+    DESCRIPTION: "Enterprise frontend application"
+    DEBUG: "false"
+    THEME: "light"
+    API_ENDPOINT: "https://api.production.com"
+    CACHE_TTL: "3600"
+    LOG_LEVEL: "warn"
+
+---
+# config/rbac/role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: k8s-cli-manager-role
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - services
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - apps
+    resources:
+      - deployments
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - k8scli.dev
+    resources:
+      - frontendpages
+    verbs:
+      - create
+      - delete
+      - get
+      - list
+      - patch
+      - update
+      - watch
+  - apiGroups:
+      - k8scli.dev
+    resources:
+      - frontendpages/finalizers
+    verbs:
+      - update
+  - apiGroups:
+      - k8scli.dev
+    resources:
+      - frontendpages/status
+    verbs:
+      - get
+      - patch
+      - update
+
+---
+# config/rbac/role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: k8s-cli-manager-rolebinding
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: k8s-cli-manager-role
+subjects:
+  - kind: ServiceAccount
+    name: k8s-cli-controller-manager
+    namespace: k8s-cli-system
+
+---
+# config/rbac/service_account.yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: k8s-cli-controller-manager
+  namespace: k8s-cli-system
+
+---
+# config/rbac/leader_election_role.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: k8s-cli-leader-election-role
+  namespace: k8s-cli-system
+rules:
+  - apiGroups:
+      - ""
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - coordination.k8s.io
+    resources:
+      - leases
+    verbs:
+      - get
+      - list
+      - watch
+      - create
+      - update
+      - patch
+      - delete
+  - apiGroups:
+      - ""
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+
+---
+# config/rbac/leader_election_role_binding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: k8s-cli-leader-election-rolebinding
+  namespace: k8s-cli-system
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: k8s-cli-leader-election-role
+subjects:
+  - kind: ServiceAccount
+    name: k8s-cli-controller-manager
+    namespace: k8s-cli-system
