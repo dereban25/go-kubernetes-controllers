@@ -16,10 +16,8 @@ import (
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller"
-	"sigs.k8s.io/controller-runtime/pkg/handler"
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/reconcile"
-	"sigs.k8s.io/controller-runtime/pkg/source"
 )
 
 var (
@@ -102,68 +100,6 @@ func (r *DeploymentController) SetupWithManager(mgr ctrl.Manager) error {
 		Complete(r)
 }
 
-// Step 9: Multi-cluster informer setup for Step 9+
-type MultiClusterInformer struct {
-	clusters map[string]client.Client
-	managers map[string]ctrl.Manager
-}
-
-func NewMultiClusterInformer() *MultiClusterInformer {
-	return &MultiClusterInformer{
-		clusters: make(map[string]client.Client),
-		managers: make(map[string]ctrl.Manager),
-	}
-}
-
-func (m *MultiClusterInformer) AddCluster(name string, config *ctrl.Config) error {
-	log.Printf("🌐 Step 9+: Adding cluster '%s' to multi-cluster informer", name)
-
-	mgr, err := ctrl.NewManager(config, ctrl.Options{
-		Scheme:             runtime.NewScheme(),
-		MetricsBindAddress: "0", // Disable metrics for individual cluster managers
-		LeaderElection:     false,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to create manager for cluster %s: %v", name, err)
-	}
-
-	// Add schemes
-	if err := appsv1.AddToScheme(mgr.GetScheme()); err != nil {
-		return fmt.Errorf("failed to add appsv1 scheme: %v", err)
-	}
-
-	// Setup controller for this cluster
-	controller := &DeploymentController{
-		Client: mgr.GetClient(),
-		Scheme: mgr.GetScheme(),
-	}
-
-	if err := controller.SetupWithManager(mgr); err != nil {
-		return fmt.Errorf("failed to setup controller for cluster %s: %v", name, err)
-	}
-
-	m.clusters[name] = mgr.GetClient()
-	m.managers[name] = mgr
-
-	log.Printf("✅ Step 9+: Successfully added cluster '%s'", name)
-	return nil
-}
-
-func (m *MultiClusterInformer) Start(ctx context.Context) error {
-	log.Printf("🚀 Step 9+: Starting multi-cluster informers for %d clusters", len(m.managers))
-
-	for name, mgr := range m.managers {
-		go func(clusterName string, manager ctrl.Manager) {
-			log.Printf("🏃 Step 9+: Starting manager for cluster '%s'", clusterName)
-			if err := manager.Start(ctx); err != nil {
-				log.Printf("❌ Step 9+: Manager for cluster '%s' failed: %v", clusterName, err)
-			}
-		}(name, mgr)
-	}
-
-	return nil
-}
-
 // Step 9: Controller command
 var controllerCmd = &cobra.Command{
 	Use:   "controller",
@@ -176,12 +112,7 @@ Step 9 Features:
 • Implements Reconcile() method for deployment events
 • Reports all events in logs as required
 • Configurable worker count and sync period
-• Proper error handling and requeuing
-
-Step 9+ Features:
-• Multi-cluster informers support
-• Dynamically created informers for multiple clusters
-• Isolated managers per cluster`,
+• Proper error handling and requeuing`,
 	Run: func(cmd *cobra.Command, args []string) {
 		runController()
 	},
@@ -195,12 +126,7 @@ func runController() {
 
 	// Create manager
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:             runtime.NewScheme(),
-		MetricsBindAddress: ":8080",
-		Port:               9443,
-		LeaderElection:     false, // Will be enabled in Step 10
-		LeaderElectionID:   "k8s-cli-controller",
-		Namespace:          controllerNamespace,
+		Scheme: runtime.NewScheme(),
 	})
 	if err != nil {
 		log.Fatalf("❌ Failed to create manager: %v", err)

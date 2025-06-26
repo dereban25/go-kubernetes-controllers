@@ -135,39 +135,6 @@ func (cm *ControllerManager) GetManager() ctrl.Manager {
 	return cm.manager
 }
 
-// Step 10: Enhanced informer controller that integrates with manager
-type ManagedInformerController struct {
-	*EventProcessor
-	manager ctrl.Manager
-}
-
-func NewManagedInformerController(manager ctrl.Manager, config *InformerConfig) *ManagedInformerController {
-	clientset, err := GetKubernetesClient()
-	if err != nil {
-		log.Fatalf("❌ Failed to create clientset: %v", err)
-	}
-
-	processor := NewEventProcessor(clientset, config)
-
-	return &ManagedInformerController{
-		EventProcessor: processor,
-		manager:        manager,
-	}
-}
-
-func (mic *ManagedInformerController) SetupWithManager(mgr ctrl.Manager) error {
-	return ctrl.NewControllerManagedBy(mgr).
-		For(&appsv1.Deployment{}).
-		Complete(mic)
-}
-
-func (mic *ManagedInformerController) Reconcile(ctx context.Context, req ctrl.Request) (ctrl.Result, error) {
-	log.Printf("🔄 Step 10: Managed informer processing: %s/%s", req.Namespace, req.Name)
-
-	// Use the existing EventProcessor logic but integrate with controller-runtime
-	return ctrl.Result{}, nil
-}
-
 // Step 10: Manager command
 var managerCmd = &cobra.Command{
 	Use:   "manager",

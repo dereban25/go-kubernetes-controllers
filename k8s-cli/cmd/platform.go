@@ -16,8 +16,12 @@ import (
 	"github.com/spf13/cobra"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
+	utilruntime "k8s.io/apimachinery/pkg/util/runtime"
+	clientgoscheme "k8s.io/client-go/kubernetes/scheme"
 	ctrl "sigs.k8s.io/controller-runtime"
 	"sigs.k8s.io/controller-runtime/pkg/client"
+	"sigs.k8s.io/controller-runtime/pkg/log/zap"
+	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
 	k8scliv1 "k8s-cli/api/v1"
 )
@@ -29,7 +33,15 @@ var (
 	portBaseURL       string
 	enableWebhooks    bool
 	discordWebhookURL string
+
+	// Platform scheme
+	platformScheme = runtime.NewScheme()
 )
+
+func init() {
+	utilruntime.Must(clientgoscheme.AddToScheme(platformScheme))
+	utilruntime.Must(k8scliv1.AddToScheme(platformScheme))
+}
 
 // Step 12: Platform Engineering API based on Port.io
 type PlatformAPI struct {
@@ -851,8 +863,10 @@ func runPlatformAPI() {
 	ctrl.SetLogger(zap.New(zap.UseDevMode(true)))
 
 	mgr, err := ctrl.NewManager(ctrl.GetConfigOrDie(), ctrl.Options{
-		Scheme:                 scheme,
-		MetricsBindAddress:     "0", // Disable controller metrics
+		Scheme: platformScheme,
+		Metrics: server.Options{
+			BindAddress: "0", // Disable controller metrics
+		},
 		HealthProbeBindAddress: "0", // Disable controller health
 		LeaderElection:         false,
 	})
