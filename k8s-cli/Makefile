@@ -110,8 +110,13 @@ fmt:
 .PHONY: lint
 lint:
 	@echo "$(GREEN)🔍 Running linter...$(NC)"
-	golangci-lint run
-	@echo "$(GREEN)✅ Linting completed$(NC)"
+	@if command -v golangci-lint >/dev/null 2>&1; then \
+		golangci-lint run; \
+		echo "$(GREEN)✅ Linting completed$(NC)"; \
+	else \
+		echo "$(YELLOW)⚠️ golangci-lint not found, skipping lint check$(NC)"; \
+		echo "$(YELLOW)💡 To install: go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest$(NC)"; \
+	fi
 
 # Build and run basic tests
 .PHONY: test-build
