@@ -13,12 +13,12 @@ Tool CLI for K8S.
 ### Pipeline Jobs
 
 | Job | Description | Status |
+|-----|-------------|--------|
 | **🔍 Code Quality** | `go fmt`, `go vet`, formatting checks | [![Code Quality](https://img.shields.io/badge/Status-✅%20Passing-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
 | **🧪 Tests** | Unit tests, build verification, syntax validation | [![Tests](https://img.shields.io/badge/Status-✅%20Passing-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
-| **🔨 Multi-Platform Build** | Linux, macOS, Windows binaries | [![Build](https://img.shields.io/badge/Status-✅%20Success-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
+| **🔨 Multi-Platform Build** | Linux, macOS | [![Build](https://img.shields.io/badge/Status-✅%20Success-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
 | **🚀 Release** | Automatic GitHub releases on tags | [![Release](https://img.shields.io/badge/Status-⏳%20On%20Tags-yellow)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
 | **📊 Status Report** | Build summary and artifact upload | [![Status](https://img.shields.io/badge/Status-✅%20Complete-brightgreen)](https://github.com/dereban25/go-kubernetes-controllers/actions/workflows/ci.yaml) |
-
 ## 📊 Latest Build Info
 
 | Metric | Value |
