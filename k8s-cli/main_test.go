@@ -19,7 +19,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 
 	// Import your cmd package with correct module path
-	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/cmd"
+	"k8s-cli/cmd"
 )
 
 var (

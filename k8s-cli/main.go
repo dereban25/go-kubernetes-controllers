@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/cmd"
+	"k8s-cli/cmd"
 	"os"
 )
 

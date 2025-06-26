@@ -16,7 +16,7 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/client"
 	"sigs.k8s.io/controller-runtime/pkg/controller/controllerutil"
 
-	k8scliv1 "github.com/dereban25/go-kubernetes-controllers/k8s-cli/api/v1"
+	k8scliv1 "k8s-cli/api/v1"
 )
 
 // FrontendPageReconciler reconciles a FrontendPage object

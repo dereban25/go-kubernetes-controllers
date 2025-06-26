@@ -21,8 +21,8 @@ import (
 	"sigs.k8s.io/controller-runtime/pkg/log/zap"
 	"sigs.k8s.io/controller-runtime/pkg/metrics/server"
 
-	k8scliv1 "github.com/dereban25/go-kubernetes-controllers/k8s-cli/api/v1"
-	"github.com/dereban25/go-kubernetes-controllers/k8s-cli/controllers"
+	k8scliv1 "k8s-cli/api/v1"
+	"k8s-cli/controllers"
 )
 
 var (

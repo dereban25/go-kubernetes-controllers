@@ -1,4 +1,4 @@
-module github.com/dereban25/go-kubernetes-controllers/k8s-cli
+module k8s-cli
 
 go 1.21
 
