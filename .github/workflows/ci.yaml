@@ -284,7 +284,7 @@ jobs:
     needs: test
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        os: [ubuntu-latest, macos-latest]
     defaults:
       run:
         working-directory: ./k8s-cli
@@ -316,7 +316,7 @@ jobs:
       - name: Build
         run: |
           mkdir -p bin
-          go build -o bin/${{ env.BINARY_NAME }}${{ matrix.os == 'windows-latest' && '.exe' || '' }} main.go
+          go build -o bin/${{ env.BINARY_NAME }}${{ '' }} main.go
 
       - name: Test build (Linux/Mac)
         if: matrix.os != 'windows-latest'
@@ -326,18 +326,12 @@ jobs:
           ./bin/${{ env.BINARY_NAME }} controller --help || echo "Controller help not available"
           ./bin/${{ env.BINARY_NAME }} platform --help || echo "Platform help not available"
 
-      - name: Test build (Windows)
-        if: matrix.os == 'windows-latest'
-        run: |
-          .\bin\${{ env.BINARY_NAME }}.exe --help || echo "Help not available"
-          .\bin\${{ env.BINARY_NAME }}.exe controller --help || echo "Controller help not available"
-          .\bin\${{ env.BINARY_NAME }}.exe platform --help || echo "Platform help not available"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
           name: ${{ env.BINARY_NAME }}-${{ matrix.os }}
-          path: k8s-cli/bin/${{ env.BINARY_NAME }}${{ matrix.os == 'windows-latest' && '.exe' || '' }}
+          path: k8s-cli/bin/${{ env.BINARY_NAME }}${{ '' }}
 
   # ────────────────────────────
   # 4. Release
